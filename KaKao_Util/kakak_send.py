@@ -1,10 +1,7 @@
-
-import time, win32con, win32api, win32gui
+import time, win32con, win32api, win32gui, ctypes
 import pyperclip
 
-
-# # 채팅방에 메시지 전송
-def kakao_sendtext(cheat_room_name, text):
+def sendtext(cheat_room_name, text):
     """Send a message to KakaoTalk chatroom using clipboard + Ctrl+V"""
     hwndMain = win32gui.FindWindow(None, cheat_room_name)
     if hwndMain == 0:
@@ -35,3 +32,15 @@ def kakao_sendtext(cheat_room_name, text):
     win32api.keybd_event(win32con.VK_RETURN, 0, win32con.KEYEVENTF_KEYUP, 0)
 
     print(f"✅ Message sent to '{cheat_room_name}': {text}")
+
+
+## 탭
+def SendTab(n=1):
+    for _ in range(n):
+        ctypes.windll.user32.keybd_event(win32con.VK_TAB, 0, 0, 0)  # Key down
+        time.sleep(0.05)
+        ctypes.windll.user32.keybd_event(win32con.VK_TAB, 0, win32con.KEYEVENTF_KEYUP, 0)  # Key up
+        time.sleep(0.1)
+
+# # 엔터
+

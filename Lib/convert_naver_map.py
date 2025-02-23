@@ -19,6 +19,7 @@ def parse_kakaomap_string(text):
     #   \s+(?P<name>\S+)          -> 공백 뒤 첫 단어를 업체명으로 처리
     #   \s+(?P<address>.+)        -> 나머지 부분 중 마지막 공백 전까지를 주소로 (주소에 공백 포함)
     #   \s+(?P<url>https?://\S+)$  -> 마지막에 있는 URL (http:// 또는 https://로 시작하는 부분)
+    text = text.replace("\n","", True)
     pattern = r'^\[(?P<tag>[^\]]+)\]\s+(?P<name>\S+)\s+(?P<address>.+)\s+(?P<url>https?://\S+)$'
     match = re.match(pattern, text)
     if match:
@@ -30,8 +31,11 @@ def parse_kakaomap_string(text):
     else:
         return None, None, None, None
 
+test_sample1 = "[카카오맵] 할머니가래떡볶이 광진자양점\n서울 광진구 뚝섬로 656 1층 102호 (자양동) https://kko.kakao.com/_eyNAV1XoK"
+test_sample2 = "[카카오맵] 다솜 서울 광진구 뚝섬로57가길 27-4 (자양동) https://kko.kakao.com/LzVBdQoif4"
+
 def main():
-    result = GetData( "[카카오맵] 다솜 서울 광진구 뚝섬로57가길 27-4 (자양동) https://kko.kakao.com/LzVBdQoif4")
+    result = GetData( "nouse", "[카카오맵]",test_sample1)
     print(result)
 
 
