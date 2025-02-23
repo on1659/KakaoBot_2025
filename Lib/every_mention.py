@@ -2,18 +2,23 @@ import pyautogui
 import time
 import win32gui
 
+cur_key_count = 0
+
+
 def FocusWindow(cheat_room_name):
+
     hwndMain = win32gui.FindWindow(None, cheat_room_name)
     if hwndMain == 0:
         print(f"❌ Error: Cannot find chatroom '{cheat_room_name}'")
         return
 
-    time.sleep(0.5)
     win32gui.SetForegroundWindow(hwndMain)
-    time.sleep(0.5)
-    # 추가: 채팅 입력창을 클릭하여 명시적으로 포커스 설정
+    cur_key_count = 0
 
-    # 예를 들어, 채팅 입력창의 좌표 (x, y)가 (100, 800)라고 가정:
+def PrintKey(key):
+    global cur_key_count
+    print(key)
+    cur_key_count = cur_key_count + 1
 
 def mention_all(k):
     """
@@ -22,26 +27,46 @@ def mention_all(k):
     """
     time.sleep(0.5)
 
+    pyautogui.write("@")  # @ 입력
+    PrintKey("@")
+    time.sleep(0.2)
+
+    pyautogui.press("down")
+    PrintKey("down")
+    time.sleep(0.1)
+
+    pyautogui.press("enter")  # 선택 확정
+    PrintKey("enter")
+    time.sleep(0.2)
+
     for i in range(k - 1):  # 0부터 k-2까지 실행
         pyautogui.write("@")  # @ 입력
-        print("@")
+        PrintKey("@")
         time.sleep(0.2)  # 입력이 반영될 시간 대기
 
         for _ in range(i + 1):  # i+1만큼 방향키 입력
             pyautogui.press("down")
-            print("down")
+            PrintKey("down")
             time.sleep(0.1)  # 키 입력 사이 딜레이
 
         pyautogui.press("enter")  # 선택 확정
-        print("enter")
+        PrintKey("enter")
         time.sleep(0.2)  # 태그가 반영될 시간 대기
 
+"""
+Press the backspace key 'count' times.
+"""
+def press_backspace(count):
+    for _ in range(count):
+        pyautogui.press("backspace")
+        time.sleep(0.1)  # small delay between presses
 
 def GetData(opentalk_name, cheate_commnad, message):
     FocusWindow(opentalk_name)
-    mention_all(3)
-    return
+    mention_all(7)
+    press_backspace(cur_key_count)
 
+    return None
 
 def main(kakao_opentalk_name):
     GetData(kakao_opentalk_name, "", "")

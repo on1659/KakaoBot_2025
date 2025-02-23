@@ -60,7 +60,9 @@ def chat_chek_command(opentalk_name, cls, clst):
             if 1 <= int(found.count()):
                 print("-------커멘드 확인!")
                 resultString = chat_func(opentalk_name, chat_command, found.iloc[0])
-                Send.sendtext(opentalk_name, resultString)  # 메시지 전송
+
+                if resultString is not None:
+                    Send.sendtext(opentalk_name, resultString)  # 메시지 전송
 
                 # 명령어 여러개 쓸경우 리턴값으로 각각 빼서 쓰면 될듯. 일단 테스트용으로 위에 하드코딩 해둠
                 return df.index[-2], df.iloc[-2, 0]
