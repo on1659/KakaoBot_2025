@@ -2,9 +2,6 @@ import pyautogui
 import time
 import win32gui
 
-cur_key_count = 0
-
-
 def FocusWindow(cheat_room_name):
 
     hwndMain = win32gui.FindWindow(None, cheat_room_name)
@@ -18,7 +15,6 @@ def FocusWindow(cheat_room_name):
 def PrintKey(key):
     global cur_key_count
     print(key)
-    cur_key_count = cur_key_count + 1
 
 def mention_all(k):
     """
@@ -53,19 +49,22 @@ def mention_all(k):
         PrintKey("enter")
         time.sleep(0.2)  # 태그가 반영될 시간 대기
 
-"""
-Press the backspace key 'count' times.
-"""
-def press_backspace(count):
-    for _ in range(count):
-        pyautogui.press("backspace")
-        time.sleep(0.1)  # small delay between presses
+
+def select_all_and_delete():
+    # Ctrl+A: 모든 텍스트 선택
+    # Ctrl+A: 모든 텍스트 선택
+    pyautogui.hotkey('ctrl', 'a')
+    time.sleep(0.2)  # 선택 상태가 반영되도록 잠시 대기
+
+    # Backspace: 선택된 텍스트 삭제
+    pyautogui.press('backspace')
+    time.sleep(0.2)
+
 
 def GetData(opentalk_name, cheate_commnad, message):
     FocusWindow(opentalk_name)
-    mention_all(7)
-    press_backspace(cur_key_count)
-
+    mention_all(3)
+    select_all_and_delete()
     return None
 
 def main(kakao_opentalk_name):

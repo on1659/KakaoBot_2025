@@ -31,8 +31,6 @@ def sendtext(cheat_room_name, text):
     win32api.keybd_event(win32con.VK_RETURN, 0, 0, 0)
     win32api.keybd_event(win32con.VK_RETURN, 0, win32con.KEYEVENTF_KEYUP, 0)
 
-    print(f"✅ Message sent to '{cheat_room_name}': {text}")
-
 
 ## 탭
 def SendTab(n=1):
