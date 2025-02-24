@@ -45,16 +45,15 @@ def chat_chek_command(opentalk_name, copy_message_size, last_message):
     copy_text = copy_text.split('\r\n')  # \r\n 으로 스플릿 __ 대화내용 인용의 경우 \r 때문에 해당안됨
     df = pd.DataFrame(copy_text)  # DF 으로 바꾸기
 
-    current_message = df.iloc[-2, 0] # chat_save.makeLastSaveText(df.iloc[-2, 0])
     df[0] = df[0].str.replace(r'\[([\S\s]+)\] \[(오전|오후)([0-9:\s]+)\] ', '', regex=True)    # 정규식으로 채팅내용만 남기기
 
     if len(df) < 2:
         CustomPrint(opentalk_name, "채팅 못 읽음")
         return "", ""
 
-    if current_message == last_message and len(df) == copy_message_size:
+    if df.iloc[-2, 0] == last_message and len(df) == copy_message_size:
         CustomPrint(opentalk_name, "방에 채팅 없었음.. ")
-        return df.index[-2], current_message
+        return df.index[-2], df.iloc[-2, 0]
     else:
         CustomPrint(opentalk_name, "방에 채팅 있었음!")
 
