@@ -2,6 +2,8 @@ import pyautogui
 import time
 import win32gui
 
+from . import chatroom_data_manager
+
 def FocusWindow(cheat_room_name):
 
     hwndMain = win32gui.FindWindow(None, cheat_room_name)
@@ -63,9 +65,21 @@ def select_all_and_delete():
 
 def GetData(opentalk_name, cheate_commnad, message):
     FocusWindow(opentalk_name)
-    mention_all(3)
+    member_value = chatroom_data_manager.get_chatroom_data(opentalk_name, "member_count")
+
+    if member_value is None:
+        print(f"❌ Error: '{opentalk_name}'에서 'member_count' 값을 찾지 못했습니다. 0으로 처리합니다.")
+        member_count = 0
+    else:
+        try:
+            member_count = int(member_value)
+        except ValueError:
+            print(f"❌ Error: 'member_count'가 정수로 변환 불가능한 값({member_value})입니다. 0으로 처리합니다.")
+            member_count = 0
+
+    mention_all(member_count)
     select_all_and_delete()
     return None
 
-def main(kakao_opentalk_name):
-    GetData(kakao_opentalk_name, "", "")
+#def main(kakao_opentalk_name):
+#    GetData(kakao_opentalk_name, "", "")
