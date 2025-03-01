@@ -3,7 +3,7 @@ import re
 import requests
 import os
 
-API_KEY = "AIzaSyDtW8bAF_ZuqNVes_yE7pAQJYPu2CUM1Bs" # os.environ['YOUTUBE_API_KEY']
+API_KEY = os.environ['YOUTUBE_API_KEY']
 
 class YoutubeVideoapi:
     def __init__(self):
@@ -51,6 +51,3 @@ def GetMusicList():
         print("Your Channel ID:", channel_id)
     else:
         print("Error:", response.status_code, response.text)
-
-
-GetMusicList()

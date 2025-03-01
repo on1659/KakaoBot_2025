@@ -2,7 +2,7 @@ import pyautogui
 import time
 import win32gui
 
-from . import chatroom_data_manager
+from . import json_data_manager
 
 def FocusWindow(cheat_room_name):
 
@@ -65,7 +65,7 @@ def select_all_and_delete():
 
 def GetData(opentalk_name, cheate_commnad, message):
     FocusWindow(opentalk_name)
-    member_value = chatroom_data_manager.get_chatroom_data(opentalk_name, "member_count")
+    member_value = json_data_manager.get_chatroom_data(opentalk_name, "member_count")
 
     if member_value is None:
         print(f"❌ Error: '{opentalk_name}'에서 'member_count' 값을 찾지 못했습니다. 0으로 처리합니다.")

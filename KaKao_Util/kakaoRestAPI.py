@@ -2,7 +2,7 @@ import requests
 import os
 
 # Replace with your actual access token
-ACCESS_TOKEN = "1c1ddcfb87328042e70266029728b1c2" # os.environ['KAKAO_ACCESS_TOKEN']
+ACCESS_TOKEN = os.environ['KAKAO_ACCESS_TOKEN']
 
 def send_kakao_message(text):
     """Send a message to yourself via KakaoTalk API"""
