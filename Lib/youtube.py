@@ -3,11 +3,9 @@ import re
 import requests
 import os
 
-API_KEY = os.environ['YOUTUBE_API_KEY']
-
 class YoutubeVideoapi:
     def __init__(self):
-        self.api_key = API_KEY  # Make sure this is correct!
+        self.api_key = os.environ['YOUTUBE_API_KEY']  # Make sure this is correct!
         self.youtube = build("youtube", "v3", developerKey=self.api_key)
 
     def videolist(self, keyword):

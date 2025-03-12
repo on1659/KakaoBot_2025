@@ -11,9 +11,10 @@ from Lib import gpt_api, chat_save
 
 # # 카톡창 이름, (활성화 상태의 열려있는 창)
 kakao_opentalk_name_List = [
-   # '하트시그널 토론회장',
-     '테스트방이야'
-   # ,'이더'
+   # '테스트방이야'
+   # ,'하트시그널 토론회장'
+    '이더'
+   # , '김자기💖'
 ]
 
 chat_command_Map = [
@@ -66,8 +67,12 @@ def chat_chek_command(opentalk_name, copy_message_size, last_message):
     copy_text = copy_text.split('\r\n')  # \r\n 으로 스플릿 __ 대화내용 인용의 경우 \r 때문에 해당안됨
     df = pd.DataFrame(copy_text)  # DF 으로 바꾸기
 
-    current_message = chat_save.makeLastSaveText(df.iloc[-2, 0])
+    #
+    # current_message = chat_save.makeLastSaveText(copy_text) # df.iloc[-2, 0])
+    current_message = chat_save.makeLastSaveText_222(df.iloc[-2, 0])
     df[0] = df[0].str.replace(r'\[([\S\s]+)\] \[(오전|오후)([0-9:\s]+)\] ', '', regex=True)    # 정규식으로 채팅내용만 남기기
+
+    CustomPrint(opentalk_name, current_message)
 
     if len(df) < 2:
         CustomPrint(opentalk_name, "채팅 못 읽음")
