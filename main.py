@@ -7,14 +7,14 @@ import subprocess
 import os
 
 from Lib import youtube, convert_naver_map, every_mention, json_data_manager
-from Lib import gpt_api, chat_save
+from Lib import gpt_api, chat_save, insta
 
 # # 카톡창 이름, (활성화 상태의 열려있는 창)
 kakao_opentalk_name_List = [
-   # '테스트방이야'
-   # ,'하트시그널 토론회장'
     '이더'
-   # , '김자기💖'
+   # '테스트방이야'
+  ,'하트시그널 토론회장'
+   , '김자기💖'
 ]
 
 chat_command_Map = [
@@ -22,11 +22,13 @@ chat_command_Map = [
     ['[카카오맵]', convert_naver_map.GetData],
     ['#all', every_mention.GetData],
     ['#방인원',json_data_manager.save_chatroom_info],
-    ['#gpt', gpt_api.getData]
+    ['#gpt', gpt_api.getData],
+    ['https://www.instagram.com/', insta.GetData]
     ]
 
 def CustomPrint(opentalk_name, *messages):
-    full_message = " ".join(str(m) for m in messages)
+    full_message = " ".join(str(m) for m in messages
+                            )
     print(f"[{opentalk_name}] {full_message}")
 
 # # 채팅내용 초기 저장 _ 마지막 채팅
