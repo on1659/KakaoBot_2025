@@ -7,14 +7,14 @@ import subprocess
 import os
 
 from Lib import youtube, convert_naver_map, every_mention, json_data_manager
-from Lib import gpt_api, chat_save, insta
+from Lib import gpt_api, chat_save, insta, chat_process
 
 # # 카톡창 이름, (활성화 상태의 열려있는 창)
 kakao_opentalk_name_List = [
     '이더'
    # '테스트방이야'
-  ,'하트시그널 토론회장'
-   , '김자기💖'
+  #,'하트시그널 토론회장'
+  # , '김자기💖'
 ]
 
 chat_command_Map = [
@@ -120,6 +120,7 @@ def main():
         print("실행중.................")
         for i, name in enumerate(kakao_opentalk_name_List):
             last_copy_size[i], last_stringList[i] = chat_chek_command(name, last_copy_size[i], last_stringList[i])  # 초기설정 _ 마지막채팅 저장
+
         time.sleep(1)
 
 if __name__ == '__main__':
@@ -133,10 +134,16 @@ if __name__ == '__main__':
 
   resultList = json_data_manager.load_api_keys("api_key.json")
   if len(resultList) > 0:
-      main()
+      proc = chat_process.ChatProcess("이더")
+      time.sleep(1)
+
+      while True:
+          proc.run()
+
+          time.sleep(1)
   else:
      print(f"❌ Error: JSON 로드 실패")
-  # convert_naver_map.main()
+      # convert_naver_map.main()
   #every_mention.main(kakao_opentalk_name_List[1])
   # youtube.GetMusicList()
 
