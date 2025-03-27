@@ -15,7 +15,8 @@ def main():
     while True:
         for chat in chatList:
             chat.run()
-        time.sleep(1)
+        time.sleep(0.5)
+
 
 if __name__ == '__main__':
 

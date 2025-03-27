@@ -47,9 +47,9 @@ class ChatProcess:
 
         # # Edit에 검색 _ 입력되어있는 텍스트가 있어도 덮어쓰기됨
         win32api.SendMessage(self.hwndkakao_edit3, win32con.WM_SETTEXT, 0, self.chatroom_name)
-        time.sleep(1)  # 안정성 위해 필요
+        time.sleep(0.5)  # 안정성 위해 필요
         pyautogui.press("enter")
-        time.sleep(1)
+        time.sleep(0.5)
 
         # 채팅방열고
         self.open_room(self.chatroom_name)
@@ -95,9 +95,9 @@ class ChatProcess:
 
         # # Edit에 검색 _ 입력되어있는 텍스트가 있어도 덮어쓰기됨
         win32api.SendMessage(self.hwndkakao_edit3, win32con.WM_SETTEXT, 0, chatroom_name)
-        time.sleep(1)  # 안정성 위해 필요
+        time.sleep(0.5)  # 안정성 위해 필요
         pyautogui.press("enter")
-        time.sleep(1)
+        time.sleep(0.5)
 
     def sendtext(self, cheat_room_name, hwndMain, text):
 
@@ -160,7 +160,7 @@ class ChatProcess:
         win32gui.SetForegroundWindow(hwndMain)
         # #조합키, 본문을 클립보드에 복사 ( ctl + c , v )
         self.PostKeyEx(hwndListControl, ord('A'), [w.VK_CONTROL], False)
-        time.sleep(1)
+        time.sleep(0.5)
         self.PostKeyEx(hwndListControl, ord('C'), [w.VK_CONTROL], False)
         ctext = clipboard.GetData()
         # print(ctext)
@@ -246,63 +246,77 @@ class ChatProcess:
 
     def parse_chat_log(self, text):
         """
-        전달받은 전체 채팅 로그(여러 줄)를 파싱하여 DataFrame을 반환.
-        날짜 라인(예: "2025년 3월 20일 목요일")을 만나면 current_date를 업데이트.
-        채팅 라인(예: "[김영태] [오전 11:35] #유툽 qwer")은 이름, 시간, 메시지를 추출해
-        current_date와 결합한 timestamp를 만듦.
+        전달받은 전체 채팅 로그(여러 줄)를 파싱하여 DataFrame을 반환합니다.
+        날짜 라인(예: "2025년 3월 20일 목요일")을 만나면 current_date를 업데이트하고,
+        채팅 메시지 라인(예: "[김영태] [오후 11:10] [카카오맵] 자양동명진센트라임")은
+        이름, 시간, 메시지를 추출하여, 메시지가 여러 줄인 경우 후속 줄은 이전 메시지에 이어붙입니다.
         """
         chat_pattern = re.compile(r'^\[(?P<name>[^\]]+)\]\s+\[(?P<time>[^\]]+)\]\s+(?P<msg>.+)$')
         date_pattern = re.compile(r'^(?P<date>\d{4}년\s*\d+월\s*\d+일.*)$')
 
         records = []
         current_date = None
-
         lines = text.splitlines()
+        prev_record = None  # 마지막으로 추가된 메시지 기록
+
         for idx, line in enumerate(lines):
             line = line.strip()
             if not line:
                 continue
 
-            # 날짜 라인 판별
+            # 날짜 라인 검사
             date_match = date_pattern.match(line)
             if date_match:
-                raw_date = date_match.group("date")  # "2025년 3월 20일 목요일"
+                raw_date = date_match.group("date")  # 예: "2025년 3월 20일 목요일"
                 tokens = raw_date.split()
                 if len(tokens) >= 3:
                     try:
                         date_obj = datetime.datetime.strptime(" ".join(tokens[:3]), "%Y년 %m월 %d일")
                         current_date = date_obj.strftime("%Y-%m-%d")
-                    except:
-                        # 파싱 실패 시 원본 사용
-                        current_date = raw_date
+                    except Exception:
+                        current_date = raw_date  # 파싱 실패 시 원본 사용
                 else:
                     current_date = raw_date
+                # 날짜 라인은 메시지로 처리하지 않음.
+                prev_record = None
                 continue
 
-            # 채팅 메시지 라인
+            # 채팅 메시지 라인 검사
             chat_match = chat_pattern.match(line)
             if chat_match:
                 name = chat_match.group("name")
-                raw_time = chat_match.group("time")  # "오전 11:35"
+                raw_time = chat_match.group("time")  # 예: "오후 11:10"
                 msg = chat_match.group("msg").strip()
-
-                # 날짜가 설정된 상태라면 날짜 + 시간 결합
                 if current_date:
                     timestamp = f"{current_date} {raw_time}"
                 else:
-                    timestamp = raw_time  # 날짜를 알 수 없으면 시간만
-
-                records.append({
+                    timestamp = raw_time
+                record = {
                     "line_idx": idx,
                     "name": name,
                     "raw_time": raw_time,
                     "date": current_date,
                     "timestamp": timestamp,
                     "message": msg
-                })
+                }
+                records.append(record)
+                prev_record = record  # 현재 메시지를 이전 메시지로 저장
+            else:
+                # 현재 줄이 채팅 메시지 형식이 아니라면, 이전 메시지의 내용에 이어붙임
+                if prev_record:
+                    prev_record["message"] += "\n" + line
+                else:
+                    # 이전 메시지가 없다면 별도로 새 메시지로 추가할 수도 있음 (옵션)
+                    pass
 
-        df = pd.DataFrame(records)
-        return df
+        return pd.DataFrame(records)
+
+    # 사용 예시
+    if __name__ == "__main__":
+        sample_text = """[김영태] [오후 11:10] [카카오맵] 자양동명진센트라임
+    서울 광진구 아차산로46가길 15 (자양동) https://kko.kakao.com/-YGaamj4Mg"""
+        df = parse_chat_log(sample_text)
+        print(df)
 
         ## 5) 추가된 메시지 중 커맨드 포함 확인
 
@@ -354,10 +368,10 @@ class ChatProcess:
 
 if __name__ == "__main__":
    proc = ChatProcess("이더")
-   time.sleep(1)
+   time.sleep(0.5)
 
    while True:
     proc.run()
-    time.sleep(1)
+    time.sleep(0.5)
 
 

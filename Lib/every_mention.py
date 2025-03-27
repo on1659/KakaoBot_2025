@@ -16,12 +16,13 @@ def FocusWindow(cheat_room_name):
 
 def PrintKey(key):
     global cur_key_count
-    print(key)
+
 
 def mention_all(k):
     """
     K명의 사용자를 모두 태그하는 함수
-    @ 입력 후 방향키 (down)를 점진적으로 증가시키며 입력
+    @ 입력 후 방향키 (d
+    wn)를 점진적으로 증가시키며 입력
     """
     time.sleep(0.5)
 
@@ -51,6 +52,10 @@ def mention_all(k):
         PrintKey("enter")
         time.sleep(0.2)  # 태그가 반영될 시간 대기
 
+    pyautogui.press("enter")  # 선택 확정
+    PrintKey("enter")
+    time.sleep(0.2)  # 태그가 반영될 시간 대기
+
 
 def select_all_and_delete():
     # Ctrl+A: 모든 텍스트 선택
@@ -78,7 +83,7 @@ def GetData(opentalk_name, cheate_commnad, message):
             member_count = 0
 
     mention_all(member_count)
-    select_all_and_delete()
+    # select_all_and_delete()
     return None
 
 #def main(kakao_opentalk_name):

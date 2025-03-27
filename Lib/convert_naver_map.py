@@ -80,9 +80,10 @@ def parse_kakaomap_string_test(text):
 
 test_sample1 = "[카카오맵] 할머니가래떡볶이 광진자양점\n서울 광진구 뚝섬로 656 1층 102호 (자양동) https://kko.kakao.com/_eyNAV1XoK"
 test_sample2 = "[카카오맵] 다솜 서울 광진구 뚝섬로57가길 27-4 (자양동) https://kko.kakao.com/LzVBdQoif4"
-
+test_sample3 = "[카카오맵] 자양동명진센트라임 서울 광진구 아차산로46가길 15 (자양동) https://kko.kakao.com/-YGaamj4Mg"
 def main():
-    result = GetData( "nouse", "[카카오맵]",test_sample1)
+
+    result = GetData( "nouse", "[카카오맵]",test_sample3)
     print(result)
 
 

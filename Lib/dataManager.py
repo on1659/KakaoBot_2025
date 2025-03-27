@@ -5,10 +5,10 @@ from Lib import gpt_api, insta
 
 # # 카톡창 이름, (활성화 상태의 열려있는 창)
 kakao_opentalk_name_List = [
-    '테스트방이야'
-    ,'이더'
+    '이더'
+    ,'테스트방이야'
     ,'하트시그널 토론회장'
-  # , '김자기💖'
+    ,'김자기💖'
 ]
 
 chat_command_Map = [
