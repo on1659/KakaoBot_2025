@@ -5,9 +5,7 @@ import pyperclip
 from pywinauto import clipboard # 채팅창내용 가져오기 위해
 import pandas as pd
 
-from Lib import youtube, convert_naver_map, every_mention, json_data_manager
-from Lib import gpt_api, insta
-
+from . import dataManager
 
 PBYTE256 = ctypes.c_ubyte * 256
 _user32 = ctypes.WinDLL("user32")
@@ -27,28 +25,23 @@ MapVirtualKeyW = _user32.MapVirtualKeyW
 MakeLong = win32api.MAKELONG
 w = win32con
 
-chat_command_Map = [
-    ['#유툽', youtube.GetData],
-    ['[카카오맵]', convert_naver_map.GetData],
-    ['#all', every_mention.GetData],
-    ['#방인원',json_data_manager.save_chatroom_info],
-    ['#gpt', gpt_api.getData],
-    ['https://www.instagram.com/', insta.GetData]
-    ]
-
 class ChatProcess:
     def __init__(self, chatroom_name):
         self.chatroom_name = chatroom_name
         self.last_index = 0
+        self.IsLoad = 0
+        self.init()
+
+    def init(self):
         # Open
         self.hWndKaKao = win32gui.FindWindow(None, "카카오톡")
         self.hwndkakao_edit1 = win32gui.FindWindowEx(self.hWndKaKao, None, "EVA_ChildWindow", None)
         self.hwndkakao_edit2_1 = win32gui.FindWindowEx(self.hwndkakao_edit1, None, "EVA_Window", None)
-        self.hwndkakao_edit2_2 = win32gui.FindWindowEx(self.hwndkakao_edit1, self.hwndkakao_edit2_1, "EVA_Window", None)  # ㄴ시작핸들을 첫번째 자식 핸들(친구목록) 을 줌(hwndkakao_edit2_1)
+        self.hwndkakao_edit2_2 = win32gui.FindWindowEx(self.hwndkakao_edit1, self.hwndkakao_edit2_1, "EVA_Window",None)  # ㄴ시작핸들을 첫번째 자식 핸들(친구목록) 을 줌(hwndkakao_edit2_1)
         self.hwndkakao_edit3 = win32gui.FindWindowEx(self.hwndkakao_edit2_2, None, "Edit", None)
         self.chatroomHwnd = win32gui.FindWindow(None, self.chatroom_name)
         if self.chatroomHwnd == 0:
-            print(f"❌ Error: Cannot find chatroom '{self.chatroom_name}'")
+            self.CustomPrint(f"❌ Error: Cannot find chatroom '{self.chatroom_name}'")
             return
         self.hwndListControl = win32gui.FindWindowEx(self.chatroomHwnd, None, "EVA_VH_ListControl_Dblclk", None)
 
@@ -57,14 +50,14 @@ class ChatProcess:
         time.sleep(1)  # 안정성 위해 필요
         pyautogui.press("enter")
         time.sleep(1)
-        
+
         # 채팅방열고
         self.open_room(self.chatroom_name)
         CopyText = self.copy_cheat(self.chatroom_name, self.chatroomHwnd, self.hwndListControl)
 
         df = self.parse_chat_log(CopyText)
-        print("[최초] 파싱 결과:")
-        print(df)
+        self.CustomPrint("[최초] 파싱 결과:")
+        self.CustomPrint(df)
 
         # 마지막으로 읽은 메시지의 line_idx를 구함 (가장 마지막 행)
         if not df.empty:
@@ -72,7 +65,18 @@ class ChatProcess:
         else:
             self.last_index = -1
 
+        self.IsLoad = 1
+
     def run(self):
+
+        # Load가 실패하면 다시 돌려야됩니다
+        if self.IsLoad == 0:
+            self.init()
+
+
+        if self.IsLoad == 0:
+            return
+
         self.open_room(self.chatroom_name)
         CopyText = self.copy_cheat(self.chatroom_name, self.chatroomHwnd, self.hwndListControl)
         df = self.parse_chat_log(CopyText)
@@ -80,11 +84,12 @@ class ChatProcess:
 
         if len(result) > 0:
             for cmd_key, func_ptr in result:
-                print(cmd_key)
+                self.CustomPrint(cmd_key)
         else:
-            print("신규 채팅이 없습니다.")
+            self.CustomPrint("신규 채팅이 없습니다.")
 
     def open_room(self, chatroom_name):
+
         # # # 채팅방 목록 검색하는 Edit (채팅방이 열려있지 않아도 전송 가능하기 위하여)
         win32gui.SetForegroundWindow(self.hWndKaKao)
 
@@ -202,15 +207,7 @@ class ChatProcess:
                 SendMessage(hwnd, msg_down, key, lparam)
                 SendMessage(hwnd, msg_up, key, lparam | 0xC0000000)
 
-    def split_command(self, chat_command, command_str):
-        """
-        #유툽 [key word] 형식의 문자열에서
-        해시태그와 키워드를 분리합니다.
-        예시: "#유툽 [Python tutorials]" -> ("#유툽", "Python tutorials")
-        """
-        # 정규식 패턴을 동적으로 생성
-        pattern = r"^" + re.escape(chat_command) + r"\s*"
-        return re.sub(pattern, "", command_str)
+
 
     def parse_chat_log_as_list(self, text):
         """
@@ -325,7 +322,7 @@ class ChatProcess:
         for idx, row in new_msgs.iterrows():
             msg = row['message']
 
-            for chat_command, chat_func in chat_command_Map:
+            for chat_command, chat_func in dataManager.chat_command_Map:
                 if chat_command in msg:
                     message = self.split_command(chat_command, msg)
                     resultString = chat_func(self.chatroom_name, chat_command, message)
@@ -334,72 +331,26 @@ class ChatProcess:
                         self.sendtext(self.chatroom_name, self.chatroomHwnd, resultString)  # 메시지 전송
 
         # 마지막 메시지 인덱스 갱신
+
         if not message_df.empty:
             self.last_index = message_df.iloc[-1]['line_idx']
 
         # 결과는 [(function, message), ...] 형태의 리스트
         return results
 
-def parse_chat_log(text):
-    """
-    전달받은 전체 채팅 로그(여러 줄)를 파싱하여 DataFrame을 반환.
-    날짜 라인(예: "2025년 3월 20일 목요일")을 만나면 current_date를 업데이트.
-    채팅 라인(예: "[김영태] [오전 11:35] #유툽 qwer")은 이름, 시간, 메시지를 추출해
-    current_date와 결합한 timestamp를 만듦.
-    """
+    def split_command(self, chat_command, command_str):
+        """
+        #유툽 [key word] 형식의 문자열에서
+        해시태그와 키워드를 분리합니다.
+        예시: "#유툽 [Python tutorials]" -> ("#유툽", "Python tutorials")
+        """
+        # 정규식 패턴을 동적으로 생성
+        pattern = r"^" + re.escape(chat_command) + r"\s*"
+        return re.sub(pattern, "", command_str)
 
-    chat_pattern = re.compile(r'^\[(?P<name>[^\]]+)\]\s+\[(?P<time>[^\]]+)\]\s+(?P<msg>.+)$')
-    date_pattern = re.compile(r'^(?P<date>\d{4}년\s*\d+월\s*\d+일.*)$')
-
-    records = []
-    current_date = None
-
-    lines = text.splitlines()
-    for idx, line in enumerate(lines):
-        line = line.strip()
-        if not line:
-            continue
-
-        # 날짜 라인 판별
-        date_match = date_pattern.match(line)
-        if date_match:
-            raw_date = date_match.group("date")  # "2025년 3월 20일 목요일"
-            tokens = raw_date.split()
-            if len(tokens) >= 3:
-                try:
-                    date_obj = datetime.datetime.strptime(" ".join(tokens[:3]), "%Y년 %m월 %d일")
-                    current_date = date_obj.strftime("%Y-%m-%d")
-                except:
-                    # 파싱 실패 시 원본 사용
-                    current_date = raw_date
-            else:
-                current_date = raw_date
-            continue
-
-        # 채팅 메시지 라인
-        chat_match = chat_pattern.match(line)
-        if chat_match:
-            name = chat_match.group("name")
-            raw_time = chat_match.group("time")  # "오전 11:35"
-            msg = chat_match.group("msg").strip()
-
-            # 날짜가 설정된 상태라면 날짜 + 시간 결합
-            if current_date:
-                timestamp = f"{current_date} {raw_time}"
-            else:
-                timestamp = raw_time  # 날짜를 알 수 없으면 시간만
-
-            records.append({
-                "line_idx": idx,
-                "name": name,
-                "raw_time": raw_time,
-                "date": current_date,
-                "timestamp": timestamp,
-                "message": msg
-            })
-
-    df = pd.DataFrame(records)
-    return df
+    def CustomPrint(self, *messages):
+        full_message = " ".join(str(m) for m in messages)
+        print(f"[{self.chatroom_name}] {full_message}")
 
 if __name__ == "__main__":
    proc = ChatProcess("이더")
