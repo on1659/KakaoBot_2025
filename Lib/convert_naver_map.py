@@ -90,5 +90,5 @@ def main():
 def GetData(opentalk_name, cheate_commnad, message):
     name, address, url  = parse_kakaomap_string_test(cheate_commnad + " " + message)
     Result =  MakeURL(name, address)
-    return Result
+    return Result, "text"
 

@@ -3,6 +3,7 @@ from Lib import chat_process, json_data_manager
 from Lib import dataManager
 
 
+
 def main():
     # ChatProcess 인스턴스들을 저장할 리스트
     chatList = []
@@ -16,6 +17,7 @@ def main():
         for chat in chatList:
             chat.run()
         time.sleep(0.5)
+
 
 
 if __name__ == '__main__':
@@ -34,6 +36,8 @@ if __name__ == '__main__':
       # convert_naver_map.main()
   #every_mention.main(kakao_opentalk_name_List[1])
   # youtube.GetMusicList()
+
+
 
 
 

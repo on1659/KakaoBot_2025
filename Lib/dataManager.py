@@ -4,12 +4,15 @@ from Lib import gpt_api, insta
 
 
 # # 카톡창 이름, (활성화 상태의 열려있는 창)
-kakao_opentalk_name_List = [
-    '이더'
-    ,'테스트방이야'
-    ,'하트시그널 토론회장'
-    ,'김자기💖'
-]
+
+
+kakao_opentalk_name_List = []
+kakao_opentalk_name_List.append('이더')
+#kakao_opentalk_name_List.append('테스트방이야')
+#kakao_opentalk_name_List.append('봇방')
+kakao_opentalk_name_List.append('하트시그널 토론회장')
+kakao_opentalk_name_List.append('김자기💖')
+
 
 chat_command_Map = [
     ['#유툽', youtube.GetData],

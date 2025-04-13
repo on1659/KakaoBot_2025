@@ -23,29 +23,27 @@ class YoutubeVideoapi:
             return video_url
         else:
             return "No video found."
+    def GetMusicList(self):
+        # Replace with your OAuth 2.0 access token.
+        ACCESS_TOKEN = self.api_key
+        url = "https://www.googleapis.com/youtube/v3/channels"
+        params = {
+            "part": "id",
+            "mine": "true"
+        }
+        headers = {
+            "Authorization": f"Bearer {ACCESS_TOKEN}"
+        }
+
+        response = requests.get(url, headers=headers, params=params)
+        if response.status_code == 200:
+            data = response.json()
+            channel_id = data["items"][0]["id"]
+            print("Your Channel ID:", channel_id)
+        else:
+            print("Error:", response.status_code, response.text)
 
 def GetData(opentalk_name, cheate_commnad, message):
     Result = YoutubeVideoapi().videolist(message)  # 아이디, 제목, 조회수, 댓글수, 좋아요수 추출
     print(Result)
-    return Result
-
-def GetMusicList():
-
-    # Replace with your OAuth 2.0 access token.
-    ACCESS_TOKEN = API_KEY
-    url = "https://www.googleapis.com/youtube/v3/channels"
-    params = {
-        "part": "id",
-        "mine": "true"
-    }
-    headers = {
-        "Authorization": f"Bearer {ACCESS_TOKEN}"
-    }
-
-    response = requests.get(url, headers=headers, params=params)
-    if response.status_code == 200:
-        data = response.json()
-        channel_id = data["items"][0]["id"]
-        print("Your Channel ID:", channel_id)
-    else:
-        print("Error:", response.status_code, response.text)
+    return Result, "text"

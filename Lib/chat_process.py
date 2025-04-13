@@ -4,7 +4,6 @@ import time, win32con, win32api, win32gui, ctypes
 import pyperclip
 from pywinauto import clipboard # 채팅창내용 가져오기 위해
 import pandas as pd
-
 from . import dataManager
 
 PBYTE256 = ctypes.c_ubyte * 256
@@ -45,12 +44,6 @@ class ChatProcess:
             return
         self.hwndListControl = win32gui.FindWindowEx(self.chatroomHwnd, None, "EVA_VH_ListControl_Dblclk", None)
 
-        # # Edit에 검색 _ 입력되어있는 텍스트가 있어도 덮어쓰기됨
-        win32api.SendMessage(self.hwndkakao_edit3, win32con.WM_SETTEXT, 0, self.chatroom_name)
-        time.sleep(0.5)  # 안정성 위해 필요
-        pyautogui.press("enter")
-        time.sleep(0.5)
-
         # 채팅방열고
         self.open_room(self.chatroom_name)
         CopyText = self.copy_cheat(self.chatroom_name, self.chatroomHwnd, self.hwndListControl)
@@ -67,12 +60,14 @@ class ChatProcess:
 
         self.IsLoad = 1
 
+    def SetForceGroundWindow(self, hwndMain):
+        win32gui.SetForegroundWindow(hwndMain)
+
     def run(self):
 
         # Load가 실패하면 다시 돌려야됩니다
         if self.IsLoad == 0:
             self.init()
-
 
         if self.IsLoad == 0:
             return
@@ -91,7 +86,7 @@ class ChatProcess:
     def open_room(self, chatroom_name):
 
         # # # 채팅방 목록 검색하는 Edit (채팅방이 열려있지 않아도 전송 가능하기 위하여)
-        win32gui.SetForegroundWindow(self.hWndKaKao)
+        self.SetForceGroundWindow(self.hWndKaKao)
 
         # # Edit에 검색 _ 입력되어있는 텍스트가 있어도 덮어쓰기됨
         win32api.SendMessage(self.hwndkakao_edit3, win32con.WM_SETTEXT, 0, chatroom_name)
@@ -99,10 +94,18 @@ class ChatProcess:
         pyautogui.press("enter")
         time.sleep(0.5)
 
+    def send(self, cheat_room_name, hwndMain, text, type):
+
+        if type == "text":
+            self.sendtext(cheat_room_name, hwndMain, text)
+
+        elif type == "image":
+            self.send_image(hwndMain, cheat_room_name)
+
     def sendtext(self, cheat_room_name, hwndMain, text):
 
         # Bring KakaoTalk chat window to the front
-        win32gui.SetForegroundWindow(hwndMain)
+        self.SetForceGroundWindow(hwndMain)
         time.sleep(0.3)
 
         # Simulate pressing Tab key 3 times (to navigate to input box)
@@ -129,7 +132,7 @@ class ChatProcess:
         현재 클립보드에 있는 이미지를 카카오톡 채팅방에 붙여넣기(CTRL+V) 후 엔터키를 통해 전송합니다.
         """
         # 카카오톡 창 포커스로 가져오기
-        win32gui.SetForegroundWindow(hwndMain)
+        self.SetForceGroundWindow(hwndMain)
         time.sleep(0.3)
 
         # 입력창으로 포커스를 이동 (필요시 Tab키 시뮬레이션)
@@ -157,7 +160,7 @@ class ChatProcess:
             time.sleep(0.1)
 
     def copy_cheat(self, chatroom_name, hwndMain, hwndListControl):
-        win32gui.SetForegroundWindow(hwndMain)
+        self.SetForceGroundWindow(hwndMain)
         # #조합키, 본문을 클립보드에 복사 ( ctl + c , v )
         self.PostKeyEx(hwndListControl, ord('A'), [w.VK_CONTROL], False)
         time.sleep(0.5)
@@ -339,10 +342,10 @@ class ChatProcess:
             for chat_command, chat_func in dataManager.chat_command_Map:
                 if chat_command in msg:
                     message = self.split_command(chat_command, msg)
-                    resultString = chat_func(self.chatroom_name, chat_command, message)
+                    resultString, result_type = chat_func(self.chatroom_name, chat_command, message)
 
                     if resultString is not None:
-                        self.sendtext(self.chatroom_name, self.chatroomHwnd, resultString)  # 메시지 전송
+                        self.send(self.chatroom_name, self.chatroomHwnd, resultString, result_type)  # 메시지 전송
 
         # 마지막 메시지 인덱스 갱신
 

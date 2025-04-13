@@ -4,7 +4,6 @@ from io import BytesIO
 from PIL import Image
 import win32clipboard
 import win32con
-from KaKao_Util import kakak_send
 
 def get_instagram_post_summary_and_media(url):
     """
@@ -72,11 +71,9 @@ def GetData(opentalk_name, cheate_commnad, message):
         print("Instagram Post Image URL:", image_url)
         # 이미지 URL이 있으면 클립보드에 복사
         copy_image_to_clipboard(image_url)
-        kakak_send.send_image(opentalk_name)
-
     if video_url:
         print("Instagram Post Video URL:", video_url)
-    return ""
+    return "", "image"
 
 # 사용 예시
 if __name__ == "__main__":

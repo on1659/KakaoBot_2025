@@ -36,4 +36,4 @@ def ask_gpt(prompt, model_name=None):
         max_tokens=100
     )
     # 첫 번째 응답 메시지 추출
-    return response.choices[0].message.content
+    return response.choices[0].message.content, "text"

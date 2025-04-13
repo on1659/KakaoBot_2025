@@ -84,7 +84,7 @@ def GetData(opentalk_name, cheate_commnad, message):
 
     mention_all(member_count)
     # select_all_and_delete()
-    return None
+    return None, "none"
 
 #def main(kakao_opentalk_name):
 #    GetData(kakao_opentalk_name, "", "")

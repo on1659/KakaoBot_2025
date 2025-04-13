@@ -70,6 +70,7 @@ def save_chatroom_info(chatroom_name, chat_command, member_count, file_path=CHAT
     print(f"    [DEBUG] 최종 data 리스트 개수: {len(data)}")
     print("---- Step 4: Done ----")
     print("==== DEBUG END ====")
+    return "", "none"
 
 
 # 사용 예시 (직접 테스트 시 아래 주석 해제해서 실행해 보세요)

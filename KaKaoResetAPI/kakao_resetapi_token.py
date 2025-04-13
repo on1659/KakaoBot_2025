@@ -61,7 +61,25 @@ class Kakao:
         res = requests.post(url, headers=headers, data=data)
         return res.json()
 
+    def get_friend_uuid(self):
+        url = "https://kapi.kakao.com/v1/api/talk/friends"
+        headers = {"Authorization": "Bearer " + self.tokens['access_token']}
+        response = requests.get(url, headers=headers)
+        result = response.json()
+
+        if response.status_code != 200:
+            # 에러 발생 시 전체 응답을 반환
+            return result
+
+        # 'elements' 필드에 친구 리스트가 포함되어 있습니다.
+        friend_list = result.get("elements", [])
+        # 각 친구의 uuid와 닉네임 정보를 추출합니다.
+        friends = [{"uuid": friend.get("uuid"), "nickname": friend.get("profile_nickname")} for friend in friend_list]
+        return friends
 
 if __name__ == "__main__":
     kakao = Kakao()
-    kakao.send_to_kakao("보낼 내용")
+    result = kakao.send_to_kakao("나에게메시지보내기는 이걸로 성공?")
+    print(result)
+    r = kakao.get_friend_uuid()
+    print(r)
