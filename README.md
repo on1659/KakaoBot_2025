@@ -67,46 +67,33 @@ KakaoBot_2025/
 ---
 
 ## 핵심 기능 소개
-채팅 메시지 전송 (send.py)
-pyautogui를 사용하여 메시지를 붙여넣고(Clipboard+Ctrl+V), Enter 키로 전송
 
-win32gui.SetForegroundWindow로 카카오톡 창 포커스 제어
+채팅 메시지 전송 (send.py)
+ - pyautogui를 사용하여 메시지를 붙여넣고(Clipboard+Ctrl+V), Enter 키로 전송
+ - win32gui.SetForegroundWindow로 카카오톡 창 포커스 제어
 
 채팅 메시지 수신 (receive.py)
-채팅창에서 Ctrl+A, Ctrl+C로 전체 메시지를 복사
-
-pandas와 정규 표현식을 사용해 사용자명, 메시지 등 파싱
+  - 채팅창에서 Ctrl+A, Ctrl+C로 전체 메시지를 복사
+  - pandas와 정규 표현식을 사용해 사용자명, 메시지 등 파싱
 
 명령어 체크 (check.py)
-#all, [카카오맵], #유툽 등 특정 키워드를 감지해 대응
-
-필요한 경우 각 모듈(every_mention.py, youtube.py 등) 호출
+- #all, [카카오맵], #유툽 등 특정 키워드를 감지해 대응
+- 필요한 경우 각 모듈(every_mention.py, youtube.py 등) 호출
 
 YouTube & 네이버 지도 (youtube.py, convert_naver_map.py)
-requests 라이브러리로 YouTube Data API, 네이버 지도 API 호출
-
-받은 결과(제목, 주소 등)를 문자열로 만들어 카카오톡에 전송
+- requests 라이브러리로 YouTube Data API, 네이버 지도 API 호출
+- 받은 결과(제목, 주소 등)를 문자열로 만들어 카카오톡에 전송
 
 모든 참여자 멘션 (every_mention.py)
-인원 수만큼 @이름 태그를 자동 입력
-
-pyautogui로 @ + 방향키 + Enter 시퀀스를 반복 수행
+- 인원 수만큼 @이름 태그를 자동 입력
+- pyautogui로 @ + 방향키 + Enter 시퀀스를 반복 수행
 
 ## 주의사항 & 마무리
-카카오톡 업데이트 주의
-
-PC 카카오톡 UI나 동작이 바뀌면 자동화 로직 일부 수정이 필요할 수 있음.
-
-API 키 관리
-
-YouTube/네이버 API 키 등은 .gitignore 처리가 권장됨.
-
-Windows 전용
-
-pywin32가 Windows용 라이브러리여서 macOS/Linux에서 호환되지 않을 수 있음.
+- 카카오톡 업데이트 주의
+- PC 카카오톡 UI나 동작이 바뀌면 자동화 로직 일부 수정이 필요할 수 있음.
+- API 키 관리 (YouTube/네이버 API 키 등은 .gitignore 처리가 권장됨)
+- Windows 전용
+- pywin32가 Windows용 라이브러리여서 macOS/Linux에서 호환되지 않을 수 있음.
 
 기여 / 문의
 버그나 개선 아이디어는 Issues에 남겨 주세요.
-
-PR(Pull Request)도 언제든 환영합니다!
-
