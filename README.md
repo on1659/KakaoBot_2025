@@ -46,10 +46,9 @@ KakaoBot_2025/
 ├── kakao_coppaste.py      # 채팅창 텍스트 복사/붙여넣기
 ├── kakak_send.py          # 메시지 전송 (pyautogui, clipboard 활용)
 └── ... (기타 파일)
-
+```
 
 ## 주요 라이브러리
-
 - **pyautogui**  
   키보드·마우스 이벤트 자동화 (Ctrl+V, Enter 등)
 
