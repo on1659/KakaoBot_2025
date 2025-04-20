@@ -59,8 +59,7 @@ class ChatProcess:
             self.last_index = -1
 
         self.IsLoad = 1
-        self.IsLoad = 1
-         self.ignoreMessage = dataManager.ignore_message
+        self.ignoreMessage = dataManager.ignore_message
 
     def SetForceGroundWindow(self, hwndMain):
         win32gui.SetForegroundWindow(hwndMain)
