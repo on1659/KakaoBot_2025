@@ -59,6 +59,8 @@ class ChatProcess:
             self.last_index = -1
 
         self.IsLoad = 1
+        self.IsLoad = 1
+         self.ignoreMessage = dataManager.ignore_message
 
     def SetForceGroundWindow(self, hwndMain):
         win32gui.SetForegroundWindow(hwndMain)
@@ -339,7 +341,10 @@ class ChatProcess:
         for idx, row in new_msgs.iterrows():
             msg = row['message']
 
-            for chat_command, chat_func in dataManager.chat_command_Map:
+            if re.match(rf"^{re.escape(self.ignoreMessage)}", msg):
+                continue
+
+            for chat_command, desc, chat_func in dataManager.chat_command_Map:
                 if chat_command in msg:
                     message = self.split_command(chat_command, msg)
                     resultString, result_type = chat_func(self.chatroom_name, chat_command, message)
