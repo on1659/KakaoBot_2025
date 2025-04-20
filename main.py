@@ -28,7 +28,13 @@ if __name__ == '__main__':
   # MY_API_KEY, MY_DEBUG 등을 사용할 수 있
   resultList = json_data_manager.load_api_keys()
   if len(resultList) > 0:
-    main()
+      try:
+          main()
+      except Exception as e:
+          # (원하시면 예외 처리 로깅)
+          print(e)
+      finally:
+          input("아무 키나 누르면 종료됩니다…")
   else:
      print(f"❌ Error: JSON 로드 실패")
       # convert_naver_map.main()

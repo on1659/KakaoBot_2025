@@ -14,7 +14,6 @@ loaded = config.read(ini_path, encoding='utf-8')
 if not loaded:
     raise FileNotFoundError(f"설정 파일을 로드하지 못했습니다: {ini_path}")
 
-
 API_KEY_FILE_PATH   = config.get('APIKey', 'path')
 CHATROOM_FILE_PATH = config.get('ChattingRoomSetting', 'path')
 
