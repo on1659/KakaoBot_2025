@@ -48,6 +48,9 @@ KakaoBot_2025/
 └── ... (기타 파일)
 ```
 
+![Uploading image.png…]()
+
+
 ## 주요 라이브러리
 - **pyautogui**  
   키보드·마우스 이벤트 자동화 (Ctrl+V, Enter 등)
