@@ -2,9 +2,6 @@ import sys
 from pathlib import Path
 import configparser
 
-from Lib import youtube, convert_naver_map, every_mention, json_data_manager
-from Lib import gpt_api, insta
-
 # ─── ini 파일 경로 설정 ────────────────────────────────────────────────
 # 이 스크립트가 있는 폴더의 한 단계 위에 DefaultSetting.ini 가 있다고 가정
 base_dir = Path(__file__).resolve().parent
@@ -33,6 +30,12 @@ kakao_opentalk_name_List = [
     name for name, _ in config.items('RoomList')
 ]
 
+# ─── [EveryMentionDefaultDelayTime] #all 멘션 Delay Time ───────────────────────
+EVERY_MENTION_DEFAULT_DELAY_TIME = float(config.get('EveryMentionDefaultDelayTime', 'value'))
+
+# ─── [API_KEY_FILE_PATH] json manager에서 사용될 데이터들 미리 Load ───────────────────────
+API_KEY_FILE_PATH   = config.get('APIKey', 'path')
+CHATROOM_FILE_PATH = config.get('ChattingRoomSetting', 'path')
 
 def format_available_commands(chat_command) -> str:
     """
@@ -59,6 +62,11 @@ def GetData(opentalk_name, chat_command, message):
     """
     return format_available_commands(chat_command), "text"
 
+
+# ─── 커맨드 맵 정의하기 위해서 선언 ─────────────────────────────────────────────────────
+
+from Lib import youtube, convert_naver_map, every_mention, json_data_manager
+from Lib import gpt_api, insta
 
 # ─── 커맨드 맵 정의 ─────────────────────────────────────────────────────
 # 1) 풀 맵 정의: key / description / handler
