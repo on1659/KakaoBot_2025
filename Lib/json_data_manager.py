@@ -1,21 +1,7 @@
-import configparser
-from pathlib import Path
+from . import dataManager
 
-# ini 파일 경로
-base_dir = Path(__file__).resolve().parent
-ini_path = base_dir.parent / 'config' / 'DefaultSetting.ini'
-
-if not ini_path.exists():
-    raise FileNotFoundError(f"설정 파일을 찾을 수 없습니다: {ini_path}")
-
-config = configparser.ConfigParser(allow_no_value=True)
-config.optionxform = lambda opt: opt  # 대소문자, 공백 그대로
-loaded = config.read(ini_path, encoding='utf-8')
-if not loaded:
-    raise FileNotFoundError(f"설정 파일을 로드하지 못했습니다: {ini_path}")
-
-API_KEY_FILE_PATH   = config.get('APIKey', 'path')
-CHATROOM_FILE_PATH = config.get('ChattingRoomSetting', 'path')
+API_KEY_FILE_PATH   = dataManager.API_KEY_FILE_PATH
+CHATROOM_FILE_PATH = dataManager.CHATROOM_FILE_PATH
 
 def save_chatroom_info(chatroom_name, chat_command, member_count, file_path=CHATROOM_FILE_PATH):
     """
