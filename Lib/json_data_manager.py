@@ -1,8 +1,22 @@
-import json
-import os
+import configparser
+from pathlib import Path
 
-CHATROOM_FILE_PATH = "chatrooms.json"
-API_KEY_FILE_PATH = "api_key.json"
+# ini 파일 경로
+base_dir = Path(__file__).resolve().parent
+ini_path = base_dir.parent / 'config' / 'DefaultSetting.ini'
+
+if not ini_path.exists():
+    raise FileNotFoundError(f"설정 파일을 찾을 수 없습니다: {ini_path}")
+
+config = configparser.ConfigParser(allow_no_value=True)
+config.optionxform = lambda opt: opt  # 대소문자, 공백 그대로
+loaded = config.read(ini_path, encoding='utf-8')
+if not loaded:
+    raise FileNotFoundError(f"설정 파일을 로드하지 못했습니다: {ini_path}")
+
+
+API_KEY_FILE_PATH   = config.get('APIKey', 'path')
+CHATROOM_FILE_PATH = config.get('ChattingRoomSetting', 'path')
 
 def save_chatroom_info(chatroom_name, chat_command, member_count, file_path=CHATROOM_FILE_PATH):
     """
@@ -125,7 +139,7 @@ def get_chatroom_data(chatroom_name: str, column_name: str, file_path=CHATROOM_F
 import json
 import os
 
-def load_api_keys(json_path="api_key.json"):
+def load_api_keys(json_path=API_KEY_FILE_PATH):
     """
     JSON 파일(예: my_keys.json)에 다음과 같은 형식의 데이터를 로드하여
     os.environ에 설정합니다.
@@ -146,7 +160,7 @@ def load_api_keys(json_path="api_key.json"):
     :return: 로드된 key-value 목록(딕셔너리 형태) 반환
     """
     print("==== DEBUG START ====")
-    print(f"★ Function: load_api_keys")
+    print(f"★ Function: {json_path}")
     print(f"★ JSON file path: {json_path}")
     print(f"★ Current working directory: {os.getcwd()}")
 

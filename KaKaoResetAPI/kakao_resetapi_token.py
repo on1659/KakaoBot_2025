@@ -15,7 +15,7 @@ if ACCESS_TOKEN is None:
     # }
 
     os.chdir('..')
-    keys = json_data_manager.load_api_keys("api_key.json")
+    keys = json_data_manager.load_api_keys()
     # 각 키를 환경변수에 저장합니다.
     ACCESS_TOKEN = os.environ.get("KAKAO_ACCESS_TOKEN")
 

@@ -1,8 +1,6 @@
 import time
-from Lib import chat_process, json_data_manager
 from Lib import dataManager
-
-
+from Lib import chat_process, json_data_manager
 
 def main():
     # ChatProcess 인스턴스들을 저장할 리스트
@@ -27,8 +25,8 @@ if __name__ == '__main__':
   # print("KAKAO_ACCESS_TOKEN =", os.environ.get('KAKAO_ACCESS_TOKEN'))
 
   # 이후 파이썬 내에서 os.environ에 접근하면
-  # MY_API_KEY, MY_DEBUG 등을 사용할 수 있음
-  resultList = json_data_manager.load_api_keys("api_key.json")
+  # MY_API_KEY, MY_DEBUG 등을 사용할 수 있
+  resultList = json_data_manager.load_api_keys()
   if len(resultList) > 0:
     main()
   else:

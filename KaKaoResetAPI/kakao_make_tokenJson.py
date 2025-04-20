@@ -17,7 +17,7 @@ if client_id is None or code is None:
     # }
 
     os.chdir('..')
-    keys = json_data_manager.load_api_keys("api_key.json")
+    keys = json_data_manager.load_api_keys()
     # 각 키를 환경변수에 저장합니다.
     client_id = os.environ.get("KAKAO_ACCESS_TOKEN")
     code = os.environ.get("KAKAO_REDIRECT_CODE")
