@@ -60,29 +60,29 @@ def copy_image_to_clipboard(image_url):
         win32clipboard.EmptyClipboard()
         win32clipboard.SetClipboardData(win32con.CF_DIB, data)
         win32clipboard.CloseClipboard()
-        print("이미지가 클립보드에 복사되었습니다.")
+        Helper.CustomPrint("이미지가 클립보드에 복사되었습니다.")
     else:
-        print("이미지 다운로드에 실패했습니다.")
+        Helper.CustomPrint("이미지 다운로드에 실패했습니다.")
 
 def GetData(opentalk_name, cheate_commnad, message):
     description, image_url, video_url = get_instagram_post_summary_and_media(cheate_commnad + message)
-    print("Instagram Post Summary:", description)
+    Helper.CustomPrint("Instagram Post Summary:", description)
     if image_url:
-        print("Instagram Post Image URL:", image_url)
+        Helper.CustomPrint("Instagram Post Image URL:", image_url)
         # 이미지 URL이 있으면 클립보드에 복사
         copy_image_to_clipboard(image_url)
     if video_url:
-        print("Instagram Post Video URL:", video_url)
+        Helper.CustomPrint("Instagram Post Video URL:", video_url)
     return "", "image"
 
 # 사용 예시
 if __name__ == "__main__":
     url = "https://www.instagram.com/reel/DHSFlcXysg4/?igsh=Y3E5bHRpbTh6NDhl"
     description, image_url, video_url = get_instagram_post_summary_and_media(url)
-    print("Instagram Post Summary:", description)
+    Helper.CustomPrint("Instagram Post Summary:", description)
     if image_url:
-        print("Instagram Post Image URL:", image_url)
+        Helper.CustomPrint("Instagram Post Image URL:", image_url)
         # 이미지 URL이 있으면 클립보드에 복사
         copy_image_to_clipboard(image_url)
     if video_url:
-        print("Instagram Post Video URL:", video_url)
+        Helper.CustomPrint("Instagram Post Video URL:", video_url)

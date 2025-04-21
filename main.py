@@ -1,5 +1,5 @@
 import time
-from Lib import dataManager
+from Lib import dataManager, Helper
 from Lib import chat_process, json_data_manager
 
 def main():
@@ -21,8 +21,8 @@ def main():
 if __name__ == '__main__':
 
   # # 이제 os.environ['MY_API_KEY'] 값을 확인해보면
-  # print("YOUTUBE_API_KEY =", os.environ.get('YOUTUBE_API_KEY'))
-  # print("KAKAO_ACCESS_TOKEN =", os.environ.get('KAKAO_ACCESS_TOKEN'))
+  # Helper.CustomPrint("YOUTUBE_API_KEY =", os.environ.get('YOUTUBE_API_KEY'))
+  # Helper.CustomPrint("KAKAO_ACCESS_TOKEN =", os.environ.get('KAKAO_ACCESS_TOKEN'))
 
   # 이후 파이썬 내에서 os.environ에 접근하면
   # MY_API_KEY, MY_DEBUG 등을 사용할 수 있
@@ -32,11 +32,11 @@ if __name__ == '__main__':
           main()
       except Exception as e:
           # (원하시면 예외 처리 로깅)
-          print(e)
+          Helper.CustomPrint(e)
       finally:
           input("아무 키나 누르면 종료됩니다…")
   else:
-     print(f"❌ Error: JSON 로드 실패")
+     Helper.CustomPrint(f"❌ Error: JSON 로드 실패")
       # convert_naver_map.main()
   #every_mention.main(kakao_opentalk_name_List[1])
   # youtube.GetMusicList()

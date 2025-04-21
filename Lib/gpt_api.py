@@ -1,7 +1,7 @@
 # 파일명: gpt_api.py
 import os
 import openai
-from . import json_data_manager  # 같은 패키지 내 모듈로 가정
+from Lib import json_data_manager
 
 # 1) OpenAI API Key 설정
 openai.api_key = os.environ.get("OPENAI_API_KEY")
@@ -37,3 +37,43 @@ def ask_gpt(prompt, model_name=None):
     )
     # 첫 번째 응답 메시지 추출
     return response.choices[0].message.content, "text"
+
+
+def test_getData():
+    """getData 함수 테스트"""
+    # 테스트용 입력값 설정
+    test_room = "test_room"
+    test_command = "gpt"
+    test_prompt = "Hello GPT!"
+    
+    # getData 함수 호출
+    response, msg_type = getData(test_room, test_command, test_prompt)
+    
+    # 응답 검증
+    assert isinstance(response, str), "응답은 문자열이어야 합니다"
+    assert msg_type == "text", "메시지 타입은 'text'여야 합니다"
+    assert len(response) > 0, "응답이 비어있지 않아야 합니다"
+
+def test_ask_gpt():
+    """ask_gpt 함수 테스트"""
+    # 테스트용 입력값 설정
+    test_prompt = "Hello GPT!"
+    test_model = "gpt-3.5-turbo"
+    
+    # ask_gpt 함수 호출
+    response, msg_type = ask_gpt(test_prompt, test_model)
+    
+    # 응답 검증
+    assert isinstance(response, str), "응답은 문자열이어야 합니다"
+    assert msg_type == "text", "메시지 타입은 'text'여야 합니다"
+    assert len(response) > 0, "응답이 비어있지 않아야 합니다"
+    
+    # 기본 모델 테스트
+    response_default, msg_type = ask_gpt(test_prompt)
+    assert isinstance(response_default, str), "기본 모델 응답은 문자열이어야 합니다"
+
+if __name__ == "__main__":
+    # 테스트 실행
+    test_getData()
+    test_ask_gpt()
+    Helper.CustomPrint("모든 테스트가 성공적으로 완료되었습니다!")

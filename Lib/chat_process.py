@@ -4,6 +4,7 @@ import time, win32con, win32api, win32gui, ctypes
 import pyperclip
 from pywinauto import clipboard # 채팅창내용 가져오기 위해
 import pandas as pd
+from . import Helper
 from . import dataManager
 
 PBYTE256 = ctypes.c_ubyte * 256
@@ -40,7 +41,7 @@ class ChatProcess:
         self.hwndkakao_edit3 = win32gui.FindWindowEx(self.hwndkakao_edit2_2, None, "Edit", None)
         self.chatroomHwnd = win32gui.FindWindow(None, self.chatroom_name)
         if self.chatroomHwnd == 0:
-            self.CustomPrint(f"❌ Error: Cannot find chatroom '{self.chatroom_name}'")
+            self.CustomPrint("❌ Error: Cannot find chatroom")
             return
         self.hwndListControl = win32gui.FindWindowEx(self.chatroomHwnd, None, "EVA_VH_ListControl_Dblclk", None)
 
@@ -167,7 +168,7 @@ class ChatProcess:
         time.sleep(0.5)
         self.PostKeyEx(hwndListControl, ord('C'), [w.VK_CONTROL], False)
         ctext = clipboard.GetData()
-        # print(ctext)
+        # Helper.CustomPrint(ctext)
         return ctext
 
     def PostKeyEx(self, hwnd, key, shift, specialkey):
@@ -320,7 +321,7 @@ class ChatProcess:
         sample_text = """[김영태] [오후 11:10] [카카오맵] 자양동명진센트라임
     서울 광진구 아차산로46가길 15 (자양동) https://kko.kakao.com/-YGaamj4Mg"""
         df = parse_chat_log(sample_text)
-        print(df)
+        Helper.CustomPrint(df)
 
         ## 5) 추가된 메시지 중 커맨드 포함 확인
 
@@ -369,9 +370,8 @@ class ChatProcess:
         pattern = r"^" + re.escape(chat_command) + r"\s*"
         return re.sub(pattern, "", command_str)
 
-    def CustomPrint(self, *messages):
-        full_message = " ".join(str(m) for m in messages)
-        print(f"[{self.chatroom_name}] {full_message}")
+    def CustomPrint(self, messages):
+        Helper.CustomPrint(f"{self.chatroom_name}-{messages}")
 
 if __name__ == "__main__":
    proc = ChatProcess("이더")

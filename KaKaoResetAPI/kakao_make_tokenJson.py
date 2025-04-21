@@ -36,6 +36,6 @@ tokens = response.json()
 if "access_token" in tokens:
     with open("../kakao_token.json", "w") as fp:
         json.dump(tokens, fp)
-        print("Tokens saved successfully")
+        Helper.CustomPrint("Tokens saved successfully")
 else:
-    print(tokens)
+    Helper.CustomPrint(tokens)

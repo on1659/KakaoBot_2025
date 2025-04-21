@@ -10,7 +10,7 @@ def FocusWindow(cheat_room_name):
 
     hwndMain = win32gui.FindWindow(None, cheat_room_name)
     if hwndMain == 0:
-        print(f"❌ Error: Cannot find chatroom '{cheat_room_name}'")
+        Helper.CustomPrint(f"❌ Error: Cannot find chatroom '{cheat_room_name}'")
         return
 
     win32gui.SetForegroundWindow(hwndMain)
@@ -75,13 +75,13 @@ def GetData(opentalk_name, cheate_commnad, message):
     member_value = json_data_manager.get_chatroom_data(opentalk_name, "member_count")
 
     if member_value is None:
-        print(f"❌ Error: '{opentalk_name}'에서 'member_count' 값을 찾지 못했습니다. 0으로 처리합니다.")
+        Helper.CustomPrint(f"❌ Error: '{opentalk_name}'에서 'member_count' 값을 찾지 못했습니다. 0으로 처리합니다.")
         member_count = 0
     else:
         try:
             member_count = int(member_value)
         except ValueError:
-            print(f"❌ Error: 'member_count'가 정수로 변환 불가능한 값({member_value})입니다. 0으로 처리합니다.")
+            Helper.CustomPrint(f"❌ Error: 'member_count'가 정수로 변환 불가능한 값({member_value})입니다. 0으로 처리합니다.")
             member_count = 0
 
     mention_all(member_count)

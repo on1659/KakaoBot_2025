@@ -80,6 +80,6 @@ class Kakao:
 if __name__ == "__main__":
     kakao = Kakao()
     result = kakao.send_to_kakao("나에게메시지보내기는 이걸로 성공?")
-    print(result)
+    Helper.CustomPrint(result)
     r = kakao.get_friend_uuid()
-    print(r)
+    Helper.CustomPrint(r)

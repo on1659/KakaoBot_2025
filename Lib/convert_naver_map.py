@@ -84,7 +84,7 @@ test_sample3 = "[카카오맵] 자양동명진센트라임 서울 광진구 아�
 def main():
 
     result = GetData( "nouse", "[카카오맵]",test_sample3)
-    print(result)
+    Helper.CustomPrint(result)
 
 
 def GetData(opentalk_name, cheate_commnad, message):

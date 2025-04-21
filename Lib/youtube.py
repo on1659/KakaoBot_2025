@@ -39,11 +39,11 @@ class YoutubeVideoapi:
         if response.status_code == 200:
             data = response.json()
             channel_id = data["items"][0]["id"]
-            print("Your Channel ID:", channel_id)
+            Helper.CustomPrint("Your Channel ID:", channel_id)
         else:
-            print("Error:", response.status_code, response.text)
+            Helper.CustomPrint("Error:", response.status_code, response.text)
 
 def GetData(opentalk_name, cheate_commnad, message):
     Result = YoutubeVideoapi().videolist(message)  # 아이디, 제목, 조회수, 댓글수, 좋아요수 추출
-    print(Result)
+    Helper.CustomPrint(Result)
     return Result, "text"

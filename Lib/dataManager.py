@@ -82,5 +82,5 @@ chat_command_Map = [
 
 # ─── 확인용 출력 ───────────────────────────────────────────────────────
 if __name__ == '__main__':
-    print("불러온 오픈톡 방 목록:", kakao_opentalk_name_List)
-    print("등록된 커맨드:", [cmd for cmd, _, _ in chat_command_Map])
+    Helper.CustomPrint("불러온 오픈톡 방 목록:", kakao_opentalk_name_List)
+    Helper.CustomPrint("등록된 커맨드:", [cmd for cmd, _, _ in chat_command_Map])

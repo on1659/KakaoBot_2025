@@ -1,4 +1,5 @@
 from . import dataManager
+from Lib import Helper
 
 API_KEY_FILE_PATH   = dataManager.API_KEY_FILE_PATH
 CHATROOM_FILE_PATH = dataManager.CHATROOM_FILE_PATH
@@ -9,30 +10,30 @@ def save_chatroom_info(chatroom_name, chat_command, member_count, file_path=CHAT
     수정),
     없으면 새 레코드를 추가하여 저장합니다.
     """
-    print("==== DEBUG START ====")
-    print(f"★ Function: save_chatroom_info")
-    print(f"★ Parameters: chatroom_name = '{chatroom_name}'")
-    print(f"★ Parameters: chat_command  = '{chat_command}'")
-    print(f"★ Parameters: member_count  = {member_count}")
-    print(f"★ file_path  = '{file_path}'")
-    print(f"★ Current working directory: {os.getcwd()}")
-    print("---- Step 1: Load existing JSON data ----")
+    Helper.CustomPrint("==== DEBUG START ====")
+    Helper.CustomPrint(f"★ Function: save_chatroom_info")
+    Helper.CustomPrint(f"★ Parameters: chatroom_name = '{chatroom_name}'")
+    Helper.CustomPrint(f"★ Parameters: chat_command  = '{chat_command}'")
+    Helper.CustomPrint(f"★ Parameters: member_count  = {member_count}")
+    Helper.CustomPrint(f"★ file_path  = '{file_path}'")
+    Helper.CustomPrint(f"★ Current working directory: {os.getcwd()}")
+    Helper.CustomPrint("---- Step 1: Load existing JSON data ----")
 
     # 기존 JSON 데이터 불러오기
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
             if not isinstance(data, list):
-                print("    [WARN] JSON 파일이 리스트 형식이 아니라 초기화합니다.")
+                Helper.CustomPrint("    [WARN] JSON 파일이 리스트 형식이 아니라 초기화합니다.")
                 data = []
             else:
-                print(f"    [INFO] 불러온 기존 레코드 수: {len(data)}")
+                Helper.CustomPrint(f"    [INFO] 불러온 기존 레코드 수: {len(data)}")
     except FileNotFoundError:
-        print(f"    [WARN] 파일을 찾을 수 없어 새로 만듭니다: {file_path}")
+        Helper.CustomPrint(f"    [WARN] 파일을 찾을 수 없어 새로 만듭니다: {file_path}")
         data = []
     except json.JSONDecodeError as e:
-        print(f"    [ERROR] JSON 파싱 에러: {e}")
-        print("    [INFO] 데이터를 초기화합니다.")
+        Helper.CustomPrint(f"    [ERROR] JSON 파싱 에러: {e}")
+        Helper.CustomPrint("    [INFO] 데이터를 초기화합니다.")
         data = []
 
     # 새로운 항목(수정 or 추가) 준비
@@ -42,33 +43,33 @@ def save_chatroom_info(chatroom_name, chat_command, member_count, file_path=CHAT
         # 필요한 필드가 더 있다면 여기에 추가
     }
 
-    print("---- Step 2: Check if the chatroom already exists ----")
+    Helper.CustomPrint("---- Step 2: Check if the chatroom already exists ----")
     found = False
     for entry in data:
         if entry.get("chatroom_name") == chatroom_name:
-            print(f"    [DEBUG] 동일한 채팅방 이름을 발견: {chatroom_name}, 기존 인원수={entry.get('member_count')}")
+            Helper.CustomPrint(f"    [DEBUG] 동일한 채팅방 이름을 발견: {chatroom_name}, 기존 인원수={entry.get('member_count')}")
             entry["member_count"] = member_count  # 기존 항목 수정
             found = True
             break
 
     if found:
-        print(f"    [INFO] '{chatroom_name}' 항목을 수정했습니다. (새 인원수={member_count})")
+        Helper.CustomPrint(f"    [INFO] '{chatroom_name}' 항목을 수정했습니다. (새 인원수={member_count})")
     else:
         data.append(chatroom_data)
-        print(f"    [INFO] '{chatroom_name}' 항목을 새로 추가했습니다. (인원수={member_count})")
+        Helper.CustomPrint(f"    [INFO] '{chatroom_name}' 항목을 새로 추가했습니다. (인원수={member_count})")
 
-    print("---- Step 3: Save updated data to JSON ----")
+    Helper.CustomPrint("---- Step 3: Save updated data to JSON ----")
     try:
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
-        print(f"    [INFO] JSON 파일 저장 완료: {file_path}")
+        Helper.CustomPrint(f"    [INFO] JSON 파일 저장 완료: {file_path}")
     except Exception as e:
-        print(f"    [ERROR] JSON 저장 실패: {e}")
+        Helper.CustomPrint(f"    [ERROR] JSON 저장 실패: {e}")
 
     # 최종 데이터 디버그 출력(선택 사항)
-    print(f"    [DEBUG] 최종 data 리스트 개수: {len(data)}")
-    print("---- Step 4: Done ----")
-    print("==== DEBUG END ====")
+    Helper.CustomPrint(f"    [DEBUG] 최종 data 리스트 개수: {len(data)}")
+    Helper.CustomPrint("---- Step 4: Done ----")
+    Helper.CustomPrint("==== DEBUG END ====")
     return "", "none"
 
 
@@ -83,12 +84,12 @@ def load_json_info(file_path=CHATROOM_FILE_PATH):
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
-            print("✅ JSON 파일 불러오기 완료:")
+            Helper.CustomPrint("✅ JSON 파일 불러오기 완료:")
             return data
     except FileNotFoundError:
-        print("❌ JSON 파일을 찾을 수 없습니다.")
+        Helper.CustomPrint("❌ JSON 파일을 찾을 수 없습니다.")
     except json.JSONDecodeError:
-        print("❌ JSON 파일 형식이 잘못되었습니다.")
+        Helper.CustomPrint("❌ JSON 파일 형식이 잘못되었습니다.")
 
     return []
 
@@ -110,11 +111,11 @@ def getJsonData(file_path, search_key: str, search_value: str, column_name: str)
                     if data.get(search_key) == search_value:
                         return data.get(column_name)
             else:
-                print("❌ JSON 데이터 형식이 올바르지 않습니다. (리스트가 아님)")
+                Helper.CustomPrint("❌ JSON 데이터 형식이 올바르지 않습니다. (리스트가 아님)")
     except FileNotFoundError:
-        print(f"❌ 파일을 찾을 수 없습니다: {file_path}")
+        Helper.CustomPrint(f"❌ 파일을 찾을 수 없습니다: {file_path}")
     except json.JSONDecodeError:
-        print(f"❌ JSON 파일 형식이 잘못되었습니다: {file_path}")
+        Helper.CustomPrint(f"❌ JSON 파일 형식이 잘못되었습니다: {file_path}")
 
     return None
 
@@ -144,10 +145,10 @@ def load_api_keys(json_path=API_KEY_FILE_PATH):
     :param json_path: JSON 파일 경로
     :return: 로드된 key-value 목록(딕셔너리 형태) 반환
     """
-    print("==== DEBUG START ====")
-    print(f"★ Function: {json_path}")
-    print(f"★ JSON file path: {json_path}")
-    print(f"★ Current working directory: {os.getcwd()}")
+    Helper.CustomPrint("==== DEBUG START ====")
+    Helper.CustomPrint(f"★ Function: {json_path}")
+    Helper.CustomPrint(f"★ JSON file path: {json_path}")
+    Helper.CustomPrint(f"★ Current working directory: {os.getcwd()}")
 
     # JSON 파일 읽기
     try:
@@ -157,13 +158,13 @@ def load_api_keys(json_path=API_KEY_FILE_PATH):
             if not isinstance(data, list):
                 raise ValueError("JSON 최상위가 리스트 형식이 아닙니다.")
     except FileNotFoundError:
-        print(f"❌ Error: 파일을 찾을 수 없습니다: {json_path}")
+        Helper.CustomPrint(f"❌ Error: 파일을 찾을 수 없습니다: {json_path}")
         return []
     except json.JSONDecodeError as e:
-        print(f"❌ Error: JSON 파싱 에러: {e}")
+        Helper.CustomPrint(f"❌ Error: JSON 파싱 에러: {e}")
         return []
     except ValueError as ve:
-        print(f"❌ Error: {ve}")
+        Helper.CustomPrint(f"❌ Error: {ve}")
         return []
 
     # 읽어온 데이터를 os.environ에 등록
@@ -173,14 +174,14 @@ def load_api_keys(json_path=API_KEY_FILE_PATH):
         key_value = entry.get("key")
 
         if not name or not key_value:
-            print(f"    [WARN] name 혹은 key 필드가 누락되었습니다: {entry}")
+            Helper.CustomPrint(f"    [WARN] name 혹은 key 필드가 누락되었습니다: {entry}")
             continue
 
         os.environ[name] = key_value
         loaded_keys.append((name, key_value))
-        print(f"[INFO] os.environ['{name}']에 값이 설정되었습니다.")
+        Helper.CustomPrint(f"[INFO] os.environ['{name}']에 값이 설정되었습니다.")
 
-    print("==== DEBUG END ====")
+    Helper.CustomPrint("==== DEBUG END ====")
     return loaded_keys
 
 #
@@ -197,11 +198,11 @@ def test():
 
     # 원하는 컬럼명을 자유롭게 설정 가능
     member_count = get_chatroom_data(chatroom_name, "member_count", file_path)
-    print(f"채팅방 '{chatroom_name}'의 인원 수: {member_count}명")
+    Helper.CustomPrint(f"채팅방 '{chatroom_name}'의 인원 수: {member_count}명")
 
     chatroom_title = get_chatroom_data(chatroom_name, "chatroom_name", file_path)
-    print(f"채팅방 이름: {chatroom_title}")
+    Helper.CustomPrint(f"채팅방 이름: {chatroom_title}")
 
     # 존재하지 않는 컬럼을 요청할 경우
     unknown_data = get_chatroom_data(chatroom_name, "unknown_column", file_path)
-    print(f"존재하지 않는 컬럼: {unknown_data}")
+    Helper.CustomPrint(f"존재하지 않는 컬럼: {unknown_data}")

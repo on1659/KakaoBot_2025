@@ -10,4 +10,4 @@ from ytmusicapi import YTMusic
 #playlist = ytmusic.get_playlist(playlist_id)
 
 # 결과 출력 (딕셔너리 형태)
-#print(playlist)
+#Helper.CustomPrint(playlist)

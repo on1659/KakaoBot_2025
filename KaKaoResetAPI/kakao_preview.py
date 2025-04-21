@@ -41,9 +41,9 @@ def send_instagram_preview(opentalk_name, image_url, video_url, link_url):
     # 카카오톡 메시지 API 호출
     response = requests.post('https://kapi.kakao.com/v1/api/talk/friends/message/default/send', headers=headers, json=data)
     if response.status_code == 200:
-        print("Message sent successfully")
+        Helper.CustomPrint("Message sent successfully")
     else:
-        print("Failed to send message:", response.status_code, "\n", response.content)
+        Helper.CustomPrint("Failed to send message:", response.status_code, "\n", response.content)
 
 
 # 사용 예시
