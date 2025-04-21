@@ -2,7 +2,7 @@ import pyautogui
 import time
 import win32gui
 from Lib import json_data_manager
-from Lib import dataManager
+from Lib import dataManager, Helper
 
 DELAY_TIME_RATE = dataManager.EVERY_MENTION_DEFAULT_DELAY_TIME
 

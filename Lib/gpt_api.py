@@ -1,6 +1,8 @@
 # 파일명: gpt_api.py
 import os
 import openai
+
+from Lib import Helper
 from Lib import json_data_manager
 
 # 1) OpenAI API Key 설정

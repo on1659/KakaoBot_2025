@@ -41,9 +41,11 @@ class ChatProcess:
         self.hwndkakao_edit3 = win32gui.FindWindowEx(self.hwndkakao_edit2_2, None, "Edit", None)
         self.chatroomHwnd = win32gui.FindWindow(None, self.chatroom_name)
         if self.chatroomHwnd == 0:
-            self.CustomPrint("❌ Error: Cannot find chatroom")
+            if Helper.is_debug_mode():
+                self.CustomPrint("❌ Error: Cannot find chatroom")
             return
         self.hwndListControl = win32gui.FindWindowEx(self.chatroomHwnd, None, "EVA_VH_ListControl_Dblclk", None)
+
 
         # 채팅방열고
         self.open_room(self.chatroom_name)
@@ -82,7 +84,7 @@ class ChatProcess:
         if len(result) > 0:
             for cmd_key, func_ptr in result:
                 self.CustomPrint(cmd_key)
-        else:
+        elif Helper.is_debug_mode():
             self.CustomPrint("신규 채팅이 없습니다.")
 
     def open_room(self, chatroom_name):
@@ -162,14 +164,31 @@ class ChatProcess:
             time.sleep(0.1)
 
     def copy_cheat(self, chatroom_name, hwndMain, hwndListControl):
-        self.SetForceGroundWindow(hwndMain)
-        # #조합키, 본문을 클립보드에 복사 ( ctl + c , v )
-        self.PostKeyEx(hwndListControl, ord('A'), [w.VK_CONTROL], False)
-        time.sleep(0.5)
-        self.PostKeyEx(hwndListControl, ord('C'), [w.VK_CONTROL], False)
-        ctext = clipboard.GetData()
-        # Helper.CustomPrint(ctext)
-        return ctext
+        """
+        chatroom_name 방의 hwndMain 창을 포커스한 뒤,
+        리스트 컨트롤(hwndListControl)의 모든 텍스트를 복사해서 반환합니다.
+        예외 발생 시에는 빈 문자열을 반환하고, 에러를 로깅합니다.
+        """
+        try:
+            # 포커스 강제
+            self.SetForceGroundWindow(hwndMain)
+
+            # Ctrl+A, Ctrl+C 조합키로 전체 복사
+            self.PostKeyEx(hwndListControl, ord('A'), [w.VK_CONTROL], False)
+            time.sleep(0.5)
+            self.PostKeyEx(hwndListControl, ord('C'), [w.VK_CONTROL], False)
+
+            # 클립보드에서 데이터 읽기
+            ctext = clipboard.GetData()
+            return ctext
+
+        except Exception as e:
+            # Helper.CustomPrint 이나 CustomPrint 등 로깅 함수 사용
+            Helper.CustomPrint(f"❌ copy_cheat 예외 발생: {e}")
+            # 디버그 정보가 더 필요하면 traceback 출력도 고려
+            import traceback
+            Helper.CustomPrint(traceback.format_exc())
+            return ""
 
     def PostKeyEx(self, hwnd, key, shift, specialkey):
         if IsWindow(hwnd):

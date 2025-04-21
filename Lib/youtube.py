@@ -3,6 +3,8 @@ import re
 import requests
 import os
 
+from Lib import Helper
+
 class YoutubeVideoapi:
     def __init__(self):
         self.api_key = os.environ['YOUTUBE_API_KEY']  # Make sure this is correct!
