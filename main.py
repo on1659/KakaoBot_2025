@@ -17,16 +17,6 @@ def main():
         time.sleep(0.5)
 
 if __name__ == '__main__':
-  # # 이제 os.environ['MY_API_KEY'] 값을 확인해보면
-  # Helper.CustomPrint("YOUTUBE_API_KEY =", os.environ.get('YOUTUBE_API_KEY'))
-  # Helper.CustomPrint("KAKAO_ACCESS_TOKEN =", os.environ.get('KAKAO_ACCESS_TOKEN'))
-
-  # 이후 파이썬 내에서 os.environ에 접근하면
-  # MY_API
-  # _KEY, MY_DEBUG 등을 사용할 수 있
-
-  # 사용 예
-
   Helper.CheckMode()
 
   resultList = json_data_manager.load_api_keys()

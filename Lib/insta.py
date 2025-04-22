@@ -1,10 +1,21 @@
 import requests
+import re
 from Lib import Helper
 from bs4 import BeautifulSoup
 from io import BytesIO
 from PIL import Image
 import win32clipboard
 import win32con
+import json
+
+def get_instagram_post_summary_and_media_test(url: str):
+    oembed_url = "https://api.instagram.com/oembed"
+    params = {"url": url, "omitscript": True}
+    resp = requests.get(oembed_url, params=params)
+    if resp.status_code != 200:
+        return "",None, None
+    data = resp.json()
+    return "", data.get("thumbnail_url"), ""  # 대개 원본 비율의 이미지
 
 def get_instagram_post_summary_and_media(url):
     """
@@ -66,7 +77,11 @@ def copy_image_to_clipboard(image_url):
         Helper.CustomPrint("이미지 다운로드에 실패했습니다.")
 
 def GetData(opentalk_name, cheate_commnad, message):
-    description, image_url, video_url = get_instagram_post_summary_and_media(cheate_commnad + message)
+    description, image_url, video_url = get_instagram_post_summary_and_media_test(cheate_commnad + message)
+
+    if image_url == None and video_url == None:
+        return "Not Found Image", "text"
+
     Helper.CustomPrint("Instagram Post Summary:", description)
     if image_url:
         Helper.CustomPrint("Instagram Post Image URL:", image_url)
@@ -78,8 +93,8 @@ def GetData(opentalk_name, cheate_commnad, message):
 
 # 사용 예시
 if __name__ == "__main__":
-    url = "https://www.instagram.com/reel/DHSFlcXysg4/?igsh=Y3E5bHRpbTh6NDhl"
-    description, image_url, video_url = get_instagram_post_summary_and_media(url)
+    url = "https://www.instagram.com/p/DIpzzT_TBor/?igsh=MWVsaWZpMXBweXk2Zw=="
+    description, image_url, video_url = get_instagram_post_summary_and_media_test(url)
     Helper.CustomPrint("Instagram Post Summary:", description)
     if image_url:
         Helper.CustomPrint("Instagram Post Image URL:", image_url)

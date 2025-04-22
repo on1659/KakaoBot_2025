@@ -34,21 +34,16 @@ class ChatProcess:
 
     def init(self):
         # Open
-        self.hWndKaKao = win32gui.FindWindow(None, "카카오톡")
-        self.hwndkakao_edit1 = win32gui.FindWindowEx(self.hWndKaKao, None, "EVA_ChildWindow", None)
-        self.hwndkakao_edit2_1 = win32gui.FindWindowEx(self.hwndkakao_edit1, None, "EVA_Window", None)
-        self.hwndkakao_edit2_2 = win32gui.FindWindowEx(self.hwndkakao_edit1, self.hwndkakao_edit2_1, "EVA_Window",None)  # ㄴ시작핸들을 첫번째 자식 핸들(친구목록) 을 줌(hwndkakao_edit2_1)
-        self.hwndkakao_edit3 = win32gui.FindWindowEx(self.hwndkakao_edit2_2, None, "Edit", None)
-        self.chatroomHwnd = win32gui.FindWindow(None, self.chatroom_name)
+        self.init_open_romm(self.chatroom_name)
+
         if self.chatroomHwnd == 0:
             if Helper.is_debug_mode():
                 self.CustomPrint("❌ Error: Cannot find chatroom")
             return
         self.hwndListControl = win32gui.FindWindowEx(self.chatroomHwnd, None, "EVA_VH_ListControl_Dblclk", None)
 
-
         # 채팅방열고
-        self.open_room(self.chatroom_name)
+        # self.open_room(self.chatroom_name)
         CopyText = self.copy_cheat(self.chatroom_name, self.chatroomHwnd, self.hwndListControl)
 
         df = self.parse_chat_log(CopyText)
@@ -87,13 +82,33 @@ class ChatProcess:
         elif Helper.is_debug_mode():
             self.CustomPrint("신규 채팅이 없습니다.")
 
-    def open_room(self, chatroom_name):
+    def init_open_romm(self, chatroom_name):
+        # # 채팅방 목록 검색하는 Edit (채팅방이 열려있지 않아도 전송 가능하기 위하여)
+        hWndKaKao = win32gui.FindWindow(None, "카카오톡")
+        hwndkakao_edit1 = win32gui.FindWindowEx(hWndKaKao, None, "EVA_ChildWindow", None)
+        hwndkakao_edit2_1 = win32gui.FindWindowEx(hwndkakao_edit1, None, "EVA_Window", None)
+        hwndkakao_edit2_2 = win32gui.FindWindowEx(hwndkakao_edit1, hwndkakao_edit2_1, "EVA_Window", None)  # ㄴ시작핸들을 첫번째 자식 핸들(친구목록) 을 줌(hwndkakao_edit2_1)
+        self.hwndkakao_edit3 = win32gui.FindWindowEx(hwndkakao_edit2_2, None, "Edit", None)
 
-        # # # 채팅방 목록 검색하는 Edit (채팅방이 열려있지 않아도 전송 가능하기 위하여)
-        self.SetForceGroundWindow(self.hWndKaKao)
+        self.chatroomHwnd = win32gui.FindWindow(None, chatroom_name)
 
         # # Edit에 검색 _ 입력되어있는 텍스트가 있어도 덮어쓰기됨
-        win32api.SendMessage(self.hwndkakao_edit3, win32con.WM_SETTEXT, 0, chatroom_name)
+        SendMessage(self.hwndkakao_edit3, win32con.WM_SETTEXT, 0, chatroom_name)
+        time.sleep(1)  # 안정성 위해 필요\
+        self.SendReturn(self.hwndkakao_edit3)
+        time.sleep(1)
+
+    def SendReturn(self, hWnd):
+        PostMessage(hWnd, win32con.WM_KEYDOWN, win32con.VK_RETURN, 0)
+        time.sleep(0.01)
+        PostMessage(hWnd, win32con.WM_KEYUP, win32con.VK_RETURN, 0)
+
+    def open_room(self, chatroom_name):
+        # # # 채팅방 목록 검색하는 Edit (채팅방이 열려있지 않아도 전송 가능하기 위하여)
+        #self.SetForceGroundWindow(self.hWndKaKao)
+
+        # # Edit에 검색 _ 입력되어있는 텍스트가 있어도 덮어쓰기됨
+        SendMessage(self.hwndkakao_edit3, win32con.WM_SETTEXT, 0, chatroom_name)
         time.sleep(0.5)  # 안정성 위해 필요
         pyautogui.press("enter")
         time.sleep(0.5)
@@ -368,7 +383,7 @@ class ChatProcess:
                     message = self.split_command(chat_command, msg)
                     resultString, result_type = chat_func(self.chatroom_name, chat_command, message)
 
-                    if resultString is not None:
+                    if result_type is not None:
                         self.send(self.chatroom_name, self.chatroomHwnd, resultString, result_type)  # 메시지 전송
 
         # 마지막 메시지 인덱스 갱신
