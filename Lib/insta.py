@@ -8,14 +8,43 @@ import win32clipboard
 import win32con
 import json
 
+
 def get_instagram_post_summary_and_media_test(url: str):
     oembed_url = "https://api.instagram.com/oembed"
     params = {"url": url, "omitscript": True}
-    resp = requests.get(oembed_url, params=params)
-    if resp.status_code != 200:
-        return "",None, None
-    data = resp.json()
-    return "", data.get("thumbnail_url"), ""  # 대개 원본 비율의 이미지
+
+    try:
+        resp = requests.get(oembed_url, params=params)
+
+        if resp.status_code != 200:
+            return "", None, None
+
+        # 응답이 JSON이 아닌 경우 HTML로 처리
+        if resp.headers.get("Content-Type") != "application/json":
+            print("응답이 JSON이 아니고 HTML 형식입니다. HTML에서 필요한 정보를 추출합니다.")
+            soup = BeautifulSoup(resp.text, "html.parser")
+
+            # 필요한 데이터 추출 (예: thumbnail_url 등)
+            thumbnail_url = None
+
+            # Instagram oEmbed 응답에서 썸네일 URL을 찾아서 저장하는 예시
+            # 실제 oEmbed 응답에는 `thumbnail_url`이 포함된 경우가 많습니다.
+            # HTML 형식에 따라 적절한 방식으로 추출해야 합니다.
+            if soup.find('meta', property='og:image'):
+                thumbnail_url = soup.find('meta', property='og:image')['content']
+
+            return "", thumbnail_url, ""  # 이미지 URL만 반환
+
+        # 정상적으로 JSON인 경우
+        data = resp.json()
+        return "", data.get("thumbnail_url"), ""
+
+    except requests.exceptions.RequestException as e:
+        print(f"Error during request: {e}")
+        return "", None, None
+    except Exception as e:
+        print(f"Error: {e}")
+        return "", None, None
 
 def get_instagram_post_summary_and_media(url):
     """
@@ -77,7 +106,7 @@ def copy_image_to_clipboard(image_url):
         Helper.CustomPrint("이미지 다운로드에 실패했습니다.")
 
 def GetData(opentalk_name, cheate_commnad, message):
-    description, image_url, video_url = get_instagram_post_summary_and_media_test(cheate_commnad + message)
+    description, image_url, video_url = get_instagram_post_summary_and_media(cheate_commnad + message)
 
     if image_url == None and video_url == None:
         return "Not Found Image", "text"

@@ -57,7 +57,6 @@ class ChatProcess:
             self.last_index = -1
 
         self.IsLoad = 1
-        self.ignoreMessage = dataManager.ignore_message
 
     def SetForceGroundWindow(self, hwndMain):
         win32gui.SetForegroundWindow(hwndMain)
@@ -350,15 +349,34 @@ class ChatProcess:
 
         return pd.DataFrame(records)
 
-    # 사용 예시
-    if __name__ == "__main__":
-        sample_text = """[김영태] [오후 11:10] [카카오맵] 자양동명진센트라임
-    서울 광진구 아차산로46가길 15 (자양동) https://kko.kakao.com/-YGaamj4Mg"""
-        df = parse_chat_log(sample_text)
-        Helper.CustomPrint(df)
+    def is_ignore_message(self, message):
+        # 1. 무시할 메시지 검사 (ignore_message로 시작하는 메시지)
+        if re.match(rf"^{re.escape(dataManager.ignore_message)}", message):
+            return 1
+        return 0
 
-        ## 5) 추가된 메시지 중 커맨드 포함 확인
+       # # 2. 헤더 라인 검사: [이름] [시간] 형태
+       # header_pattern = re.compile(r'^\[(?P<name>[^\]]+)\]\s*\[(?P<time>[^\]]+)\]$')
+       # m = header_pattern.match(message.strip())
 
+       # # 3. 정규식 매칭이 되지 않으면 None 반환됨 (m이 None일 때 예외 처리)
+       # if m is None:
+       #     print(f"{message} No match for header pattern")
+       #     return 1
+
+       # # 4. name과 time이 올바르게 매칭되지 않으면 무시 처리
+       # if m.group('name') is None:
+       #     print("name None")
+       #     return 1
+
+       # if m.group('time') is None:
+       #     print("time None")
+       #     return 1
+
+       # # 모든 조건을 통과하면 0 반환
+       # return 0
+
+    ## 5) 추가된 메시지 중 커맨드 포함 확인
     def check_new_commands(self, message_df):
         """
         1) 새로 복사한 전체 로그를 파싱(message_df).
@@ -375,7 +393,7 @@ class ChatProcess:
         for idx, row in new_msgs.iterrows():
             msg = row['message']
 
-            if re.match(rf"^{re.escape(self.ignoreMessage)}", msg):
+            if self.is_ignore_message(msg) == 1:
                 continue
 
             for chat_command, desc, chat_func in dataManager.chat_command_Map:
