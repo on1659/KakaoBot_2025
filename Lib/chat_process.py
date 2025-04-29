@@ -68,12 +68,15 @@ class ChatProcess:
             self.init()
 
         if self.IsLoad == 0:
+
             return
+
 
         self.open_room(self.chatroom_name)
         CopyText = self.copy_cheat(self.chatroom_name, self.chatroomHwnd, self.hwndListControl)
         df = self.parse_chat_log(CopyText)
         result = self.check_new_commands(df)
+        pyperclip.copy("")
 
         if len(result) > 0:
             for cmd_key, func_ptr in result:
@@ -81,7 +84,9 @@ class ChatProcess:
         elif Helper.is_debug_mode():
             self.CustomPrint("신규 채팅이 없습니다.")
 
+
     def init_open_romm(self, chatroom_name):
+
         # # 채팅방 목록 검색하는 Edit (채팅방이 열려있지 않아도 전송 가능하기 위하여)
         hWndKaKao = win32gui.FindWindow(None, "카카오톡")
         hwndkakao_edit1 = win32gui.FindWindowEx(hWndKaKao, None, "EVA_ChildWindow", None)
@@ -403,6 +408,7 @@ class ChatProcess:
 
                     if result_type is not None:
                         self.send(self.chatroom_name, self.chatroomHwnd, resultString, result_type)  # 메시지 전송
+                        Helper.CustomPrint(f"{self.chatroom_name} - {msg},[{result_type}] Type")
 
         # 마지막 메시지 인덱스 갱신
 

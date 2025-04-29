@@ -3,7 +3,7 @@ from datetime import datetime
 
 IS_DEBUG_MODE = 'pydevd' in sys.modules
 
-def CustomPrint(messages, saveLog = 1):
+def CustomPrint(messages, saveLog = 0):
     full_message = "".join(str(m) for m in messages)
     ts = datetime.now().strftime("%m-%d-%H:%M:%S")
     print(f"{ts} // {full_message}")
