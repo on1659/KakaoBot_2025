@@ -408,7 +408,7 @@ class ChatProcess:
 
                     if result_type is not None:
                         self.send(self.chatroom_name, self.chatroomHwnd, resultString, result_type)  # 메시지 전송
-                        Helper.CustomPrint(f"{self.chatroom_name} - {msg},[{result_type}] Type")
+                        Helper.CustomPrint(f"{self.chatroom_name} - {msg} - [{result_type}]")
 
         # 마지막 메시지 인덱스 갱신
 
