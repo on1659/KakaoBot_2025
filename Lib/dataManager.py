@@ -15,28 +15,35 @@ if not ini_path.exists():
 
 # ─── configparser 초기화 ───────────────────────────────────────────────
 # allow_no_value=True 로 값 없이 섹션 내에 키만 나열해도 파싱 가능하도록
-config = configparser.ConfigParser(allow_no_value=True)
-# 옵션 이름(option) 그대로 보존 (소문자 변환 방지)
-config.optionxform = lambda option: option
+DefaultSettingConfig = configparser.ConfigParser(allow_no_value=True)
 
-read_files = config.read(ini_path, encoding='utf-8')
+# 옵션 이름(option) 그대로 보존 (소문자 변환 방지)
+DefaultSettingConfig.optionxform = lambda option: option
+
+read_files = DefaultSettingConfig.read(ini_path, encoding='utf-8')
 if not read_files:
     raise FileNotFoundError(f"설정 파일을 로드하지 못했습니다: {ini_path}")
+# ─── configparser 초기화 ───────────────────────────────────────────────
 
-if 'RoomList' not in config:
+if 'RoomList' not in DefaultSettingConfig:
     raise KeyError(f"'RoomList' 섹션이 INI 파일에 없습니다: {ini_path}")
 
 # ─── [RoomList] 섹션의 키 목록을 방 이름 리스트로 변환 ───────────────────────
-kakao_opentalk_name_List = [
-    name for name, _ in config.items('RoomList')
-]
+kakao_opentalk_name_List = [name for name, _ in DefaultSettingConfig.items('RoomList')]
+# ─── [RoomList] 섹션의 키 목록을 방 이름 리스트로 변환 ───────────────────────
 
 # ─── [EveryMentionDefaultDelayTime] #all 멘션 Delay Time ───────────────────────
-EVERY_MENTION_DEFAULT_DELAY_TIME = float(config.get('EveryMentionDefaultDelayTime', 'value'))
+EVERY_MENTION_DEFAULT_DELAY_TIME = float(DefaultSettingConfig.get('EveryMentionDefaultDelayTime', 'value'))
+# ─── [EveryMentionDefaultDelayTime] #all 멘션 Delay Time ───────────────────────
 
 # ─── [API_KEY_FILE_PATH] json manager에서 사용될 데이터들 미리 Load ───────────────────────
-API_KEY_FILE_PATH   = config.get('APIKey', 'path')
-CHATROOM_FILE_PATH = config.get('ChattingRoomSetting', 'path')
+API_KEY_FILE_PATH   = DefaultSettingConfig.get('APIKey', 'path')
+CHATROOM_FILE_PATH = DefaultSettingConfig.get('ChattingRoomSetting', 'path')
+# ─── [API_KEY_FILE_PATH] json manager에서 사용될 데이터들 미리 Load ───────────────────────
+
+# ─── [BotName] BotName ───────────────────────
+BOT_NAME = DefaultSettingConfig.get('BotName', 'name')
+
 
 def format_available_commands(chat_command) -> str:
     """

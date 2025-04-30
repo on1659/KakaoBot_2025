@@ -30,6 +30,7 @@ class ChatProcess:
         self.chatroom_name = chatroom_name
         self.last_index = 0
         self.IsLoad = 0
+        self.BotName = dataManager.BOT_NAME
         self.init()
 
     def init(self):
@@ -68,9 +69,7 @@ class ChatProcess:
             self.init()
 
         if self.IsLoad == 0:
-
             return
-
 
         self.open_room(self.chatroom_name)
         CopyText = self.copy_cheat(self.chatroom_name, self.chatroomHwnd, self.hwndListControl)
@@ -197,9 +196,13 @@ class ChatProcess:
             time.sleep(0.5)
             self.PostKeyEx(hwndListControl, ord('C'), [w.VK_CONTROL], False)
 
-            # 클립보드에서 데이터 읽기
-            ctext = clipboard.GetData()
-            return ctext
+            try:
+                ctext = clipboard.GetData()  # 클립보드 내용 가져오기
+                return ctext
+            except RuntimeError as e:
+                # 오류 발생 시 로그 출력하고 빈 문자열을 반환하거나 다른 처리
+                self.CustomPrint(f"❌ copy_cheat 예외 발생: {e}")
+                return ""
 
         except Exception as e:
             # Helper.CustomPrint 이나 CustomPrint 등 로깅 함수 사용
@@ -249,8 +252,6 @@ class ChatProcess:
             else:
                 SendMessage(hwnd, msg_down, key, lparam)
                 SendMessage(hwnd, msg_up, key, lparam | 0xC0000000)
-
-
 
     def parse_chat_log_as_list(self, text):
         """
@@ -354,8 +355,12 @@ class ChatProcess:
 
         return pd.DataFrame(records)
 
-    def is_ignore_message(self, message):
-        # 1. 무시할 메시지 검사 (ignore_message로 시작하는 메시지)
+    def is_ignore_message(self, message, name):
+        # 1. 내 메시지인지 검사
+        if name == self.BotName:
+            return 1
+
+        # 2. 무시할 메시지 검사 (ignore_message로 시작하는 메시지)
         if re.match(rf"^{re.escape(dataManager.ignore_message)}", message):
             return 1
         return 0
@@ -397,8 +402,9 @@ class ChatProcess:
         results = []
         for idx, row in new_msgs.iterrows():
             msg = row['message']
+            name = row['name']
 
-            if self.is_ignore_message(msg) == 1:
+            if self.is_ignore_message(msg, name) == 1:
                 continue
 
             for chat_command, desc, chat_func in dataManager.chat_command_Map:
