@@ -44,6 +44,11 @@ CHATROOM_FILE_PATH = DefaultSettingConfig.get('ChattingRoomSetting', 'path')
 # ─── [BotName] BotName ───────────────────────
 BOT_NAME = DefaultSettingConfig.get('BotName', 'name')
 
+# ─── [GPT Info] GPT 관련 정보들들 Load ───────────────────────
+GPT_MAX_TOKEN = DefaultSettingConfig.get('GPT', 'maxToken')
+# ─── [GPT Info] GPT 관련 정보들들 Load ────────────────────────
+
+
 
 def format_available_commands(chat_command) -> str:
     """
