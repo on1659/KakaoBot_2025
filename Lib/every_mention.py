@@ -84,6 +84,7 @@ def GetData(opentalk_name, cheate_commnad, message):
         except ValueError:
             Helper.CustomPrint(f"❌ Error: 'member_count'가 정수로 변환 불가능한 값({member_value})입니다. 0으로 처리합니다.")
             member_count = 0
+            return "방 인원을 직접 세팅해주세요", "text"
 
     mention_all(member_count)
     # select_all_and_delete()
