@@ -77,7 +77,7 @@ def GetData(opentalk_name, cheate_commnad, message):
     if member_value is None:
         Helper.CustomPrint(f"❌ Error: '{opentalk_name}'에서 'member_count' 값을 찾지 못했습니다. 0으로 처리합니다.")
         member_count = 0
-        return "방 인원을 직접 세팅해주세요", "none"
+        return "방 인원을 직접 세팅해주세요", "text"
     else:
         try:
             member_count = int(member_value)
