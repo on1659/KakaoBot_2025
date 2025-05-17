@@ -80,17 +80,20 @@ def GetData(opentalk_name, chat_command, message):
 
 from Lib import youtube, convert_naver_map, every_mention, json_data_manager
 from Lib import gpt_api, insta
+from Lib import fund_holdings_service
 
 # ─── 커맨드 맵 정의 ─────────────────────────────────────────────────────
 # 1) 풀 맵 정의: key / description / handler
 chat_command_Map = [
-    ['#command', "None", GetData],
+    ['#?', "None", GetData],
+    ['#command', "#command / #? 현재 사용가능한 명령어를 확인 할 수 있습니다.", GetData],
     ['#유툽', "#유툽 (검색) \n 유튜브 검색에서 첫번째 나온 영상을 보여줍니다.", youtube.GetData],
     ['[카카오맵]', "카카오맵->네이버지도 변환기능 \n 카카오맵url을 올리면 자동으로 네이버 주소로 변환해줍니다", convert_naver_map.GetData],
     ['#all', "#all \n모든 인원을 호출합니다. 단! #방인원 (숫자)로 현재 방인원에 정보를 저장해야합니다", every_mention.GetData],
     ['#방인원', "#방인원 (숫자) \n  #all을 사용하기 위한 기능으로, 현재 방인원을 직접 설정해주셔야합니다.",  json_data_manager.save_chatroom_info],
     ['#gpt', "#gpt (내용) \n gpt 에 검색하여 나온 질의를 응답해줍니다. 비용문제로 안될 수 있습니다.", gpt_api.getData],
     ['https://www.instagram.com/', "인스타 한장 요약 \n 인스타 링크를 올리면 한장 요약을 해주는 기능입니다", insta.GetData],
+    ['#펀드', "#펀드보유 (종목명/티커) (N일)\n미국 주식의 상위 펀드 보유 현황과 최근 N일 내 변동을 보여줍니다.", fund_holdings_service.GetFundHoldings],
 ]
 
 # ─── 확인용 출력 ───────────────────────────────────────────────────────
