@@ -6,6 +6,7 @@ from pywinauto import clipboard # 채팅창내용 가져오기 위해
 import pandas as pd
 from . import Helper
 from . import dataManager
+import win32clipboard
 
 PBYTE256 = ctypes.c_ubyte * 256
 _user32 = ctypes.WinDLL("user32")
@@ -60,7 +61,27 @@ class ChatProcess:
         self.IsLoad = 1
 
     def SetForceGroundWindow(self, hwndMain):
+        """
+        주어진 창 핸들을 전면으로 가져오는 메서드입니다.
+        창이 최소화되어 있다면 복원하고, 포커스를 설정합니다.
+        """
+        if not win32gui.IsWindow(hwndMain):
+            raise Exception(f"유효하지 않은 창 핸들: {hwndMain}")
+        
+        # 현재 포커스된 창 정보 저장
+        current_focus = win32gui.GetForegroundWindow()
+        current_focus_title = win32gui.GetWindowText(current_focus)
+        
+        # 창이 최소화되어 있다면 복원
+        if win32gui.IsIconic(hwndMain):
+            win32gui.ShowWindow(hwndMain, win32con.SW_RESTORE)
+        
+        # 창을 전면으로 가져오기
         win32gui.SetForegroundWindow(hwndMain)
+        
+        # 포커스가 변경되었는지 확인
+        if win32gui.GetForegroundWindow() != hwndMain:
+            raise Exception(f"창 포커스 실패 - 현재 포커스된 창: {current_focus_title}")
 
     def run(self):
 
@@ -187,30 +208,90 @@ class ChatProcess:
         리스트 컨트롤(hwndListControl)의 모든 텍스트를 복사해서 반환합니다.
         예외 발생 시에는 빈 문자열을 반환하고, 에러를 로깅합니다.
         """
-        try:
-            # 포커스 강제
-            self.SetForceGroundWindow(hwndMain)
-
-            # Ctrl+A, Ctrl+C 조합키로 전체 복사
-            self.PostKeyEx(hwndListControl, ord('A'), [w.VK_CONTROL], False)
-            time.sleep(0.5)
-            self.PostKeyEx(hwndListControl, ord('C'), [w.VK_CONTROL], False)
-
+        max_retries = 3
+        retry_delay = 1.0  # seconds
+        
+        for attempt in range(max_retries):
             try:
-                ctext = clipboard.GetData()  # 클립보드 내용 가져오기
-                return ctext
-            except RuntimeError as e:
-                # 오류 발생 시 로그 출력하고 빈 문자열을 반환하거나 다른 처리
-                self.CustomPrint(f"❌ copy_cheat 예외 발생: {e}")
-                return ""
+                # 포커스 강제
+                try:
+                    # 창이 유효한지 확인
+                    if not win32gui.IsWindow(hwndMain):
+                        Helper.CustomPrint(f"❌ [{chatroom_name}] 창 핸들이 유효하지 않습니다: {hwndMain}")
+                        time.sleep(retry_delay)
+                        continue
+                        
+                    # 창을 전면으로 가져오기 전에 현재 포커스된 창 저장
+                    current_focus = win32gui.GetForegroundWindow()
+                    current_focus_title = win32gui.GetWindowText(current_focus)
+                    
+                    # 창을 전면으로 가져오기
+                    win32gui.ShowWindow(hwndMain, win32con.SW_RESTORE)
+                    win32gui.SetForegroundWindow(hwndMain)
+                    
+                    # 포커스가 변경되었는지 확인
+                    if win32gui.GetForegroundWindow() != hwndMain:
+                        Helper.CustomPrint(f"❌ [{chatroom_name}] 창 포커스 실패 - 현재 포커스된 창: {current_focus_title}")
+                        time.sleep(retry_delay)
+                        continue
+                        
+                except Exception as e:
+                    Helper.CustomPrint(f"❌ [{chatroom_name}] SetForegroundWindow 예외 발생: {e}")
+                    time.sleep(retry_delay)
+                    continue
 
-        except Exception as e:
-            # Helper.CustomPrint 이나 CustomPrint 등 로깅 함수 사용
-            Helper.CustomPrint(f"❌ copy_cheat 예외 발생: {e}")
-            # 디버그 정보가 더 필요하면 traceback 출력도 고려
-            import traceback
-            Helper.CustomPrint(traceback.format_exc())
-            return ""
+                # 클립보드 초기화
+                try:
+                    win32clipboard.OpenClipboard()
+                    win32clipboard.EmptyClipboard()
+                    win32clipboard.CloseClipboard()
+                except Exception as e:
+                    Helper.CustomPrint(f"❌ [{chatroom_name}] 클립보드 초기화 실패: {e}")
+                    time.sleep(retry_delay)
+                    continue
+
+                # Ctrl+A, Ctrl+C 조합키로 전체 복사
+                self.PostKeyEx(hwndListControl, ord('A'), [w.VK_CONTROL], False)
+                time.sleep(0.5)
+                self.PostKeyEx(hwndListControl, ord('C'), [w.VK_CONTROL], False)
+                time.sleep(0.5)  # 클립보드 복사 대기
+
+                try:
+                    # 클립보드 내용 가져오기 시도
+                    win32clipboard.OpenClipboard()
+                    if win32clipboard.IsClipboardFormatAvailable(win32con.CF_UNICODETEXT):
+                        ctext = win32clipboard.GetClipboardData(win32con.CF_UNICODETEXT)
+                        win32clipboard.CloseClipboard()
+                        if ctext:  # 내용이 있는 경우에만 반환
+                            return ctext
+                        else:
+                            Helper.CustomPrint(f"❌ [{chatroom_name}] 클립보드 내용이 비어있습니다.")
+                            time.sleep(retry_delay)
+                            continue
+                    else:
+                        Helper.CustomPrint(f"❌ [{chatroom_name}] 클립보드에 텍스트 형식이 없습니다.")
+                        win32clipboard.CloseClipboard()
+                        time.sleep(retry_delay)
+                        continue
+                        
+                except Exception as e:
+                    Helper.CustomPrint(f"❌ [{chatroom_name}] 클립보드 접근 예외 발생: {e}")
+                    try:
+                        win32clipboard.CloseClipboard()
+                    except:
+                        pass
+                    time.sleep(retry_delay)
+                    continue
+
+            except Exception as e:
+                Helper.CustomPrint(f"❌ [{chatroom_name}] copy_cheat 예외 발생: {e}")
+                import traceback
+                Helper.CustomPrint(traceback.format_exc())
+                time.sleep(retry_delay)
+                continue
+
+        # 모든 재시도 실패 시 빈 문자열 반환
+        return ""
 
     def PostKeyEx(self, hwnd, key, shift, specialkey):
         if IsWindow(hwnd):

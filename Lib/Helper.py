@@ -27,7 +27,7 @@ def init_log_file():
     try:
         ensure_saved_directory()
         rotate_log_file()
-        log_file = open(os.path.join("saved", "log.txt"), "a", encoding="utf-8")
+        log_file = open(os.path.join("saved", "log.log"), "a", encoding="utf-8")
         atexit.register(close_log_file)  # 프로그램 종료 시 파일 닫기
     except Exception as e:
         print(f"로그 파일 초기화 중 오류 발생: {e}")
