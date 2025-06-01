@@ -12,7 +12,9 @@ def check_and_update():
     if Helper.check_github_updates():
         Helper.CustomPrint("🔄 새로운 업데이트가 있습니다. 업데이트를 시작합니다...")
         if Helper.perform_git_update():
-            Helper.CustomPrint("✅ 업데이트가 완료되었습니다. 프로그램을 재시작합니다...")
+            Helper.CustomPrint("✅ 업데이트가 완료되었습니다.")
+            Helper.CustomPrint("🔄 프로그램을 재시작합니다... (3초 후)")
+            time.sleep(3)  # 사용자가 메시지를 읽을 수 있도록 잠시 대기
             python = sys.executable
             os.execl(python, python, *sys.argv)
         else:
