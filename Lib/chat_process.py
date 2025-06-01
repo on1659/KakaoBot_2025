@@ -72,16 +72,34 @@ class ChatProcess:
         current_focus = win32gui.GetForegroundWindow()
         current_focus_title = win32gui.GetWindowText(current_focus)
         
+        # 이미 원하는 창이 포커스되어 있다면 바로 반환
+        if current_focus == hwndMain:
+            return
+        
         # 창이 최소화되어 있다면 복원
         if win32gui.IsIconic(hwndMain):
             win32gui.ShowWindow(hwndMain, win32con.SW_RESTORE)
+            time.sleep(0.2)  # 창 복원 대기
+        
+        # 현재 포커스된 창이 카카오톡 창인 경우, 포커스 해제
+        if "카카오톡" in current_focus_title:
+            win32gui.SetForegroundWindow(None)
+            time.sleep(0.2)  # 포커스 해제 대기
         
         # 창을 전면으로 가져오기
         win32gui.SetForegroundWindow(hwndMain)
+        time.sleep(0.3)  # 포커스 변경 대기
         
         # 포커스가 변경되었는지 확인
         if win32gui.GetForegroundWindow() != hwndMain:
-            raise Exception(f"창 포커스 실패 - 현재 포커스된 창: {current_focus_title}")
+            # 한 번 더 시도
+            win32gui.SetForegroundWindow(None)
+            time.sleep(0.2)
+            win32gui.SetForegroundWindow(hwndMain)
+            time.sleep(0.3)
+            
+            if win32gui.GetForegroundWindow() != hwndMain:
+                raise Exception(f"창 포커스 실패 - 현재 포커스된 창: {current_focus_title}")
 
     def run(self):
 
@@ -225,15 +243,26 @@ class ChatProcess:
                     current_focus = win32gui.GetForegroundWindow()
                     current_focus_title = win32gui.GetWindowText(current_focus)
                     
-                    # 창을 전면으로 가져오기
-                    win32gui.ShowWindow(hwndMain, win32con.SW_RESTORE)
-                    win32gui.SetForegroundWindow(hwndMain)
-                    
-                    # 포커스가 변경되었는지 확인
-                    if win32gui.GetForegroundWindow() != hwndMain:
-                        Helper.CustomPrint(f"❌ [{chatroom_name}] 창 포커스 실패 - 현재 포커스된 창: {current_focus_title}")
-                        time.sleep(retry_delay)
-                        continue
+                    # 이미 원하는 창이 포커스되어 있다면 대기 시간만 추가
+                    if current_focus == hwndMain:
+                        time.sleep(0.3)
+                    else:
+                        # 현재 포커스된 창이 카카오톡 창인 경우, 포커스 해제
+                        if "카카오톡" in current_focus_title:
+                            win32gui.SetForegroundWindow(None)
+                            time.sleep(0.2)
+                        
+                        # 창을 전면으로 가져오기
+                        win32gui.ShowWindow(hwndMain, win32con.SW_RESTORE)
+                        time.sleep(0.2)
+                        win32gui.SetForegroundWindow(hwndMain)
+                        time.sleep(0.3)
+                        
+                        # 포커스가 변경되었는지 확인
+                        if win32gui.GetForegroundWindow() != hwndMain:
+                            Helper.CustomPrint(f"❌ [{chatroom_name}] 창 포커스 실패 - 현재 포커스된 창: {current_focus_title}")
+                            time.sleep(retry_delay)
+                            continue
                         
                 except Exception as e:
                     Helper.CustomPrint(f"❌ [{chatroom_name}] SetForegroundWindow 예외 발생: {e}")
@@ -245,6 +274,7 @@ class ChatProcess:
                     win32clipboard.OpenClipboard()
                     win32clipboard.EmptyClipboard()
                     win32clipboard.CloseClipboard()
+                    time.sleep(0.2)  # 클립보드 초기화 대기
                 except Exception as e:
                     Helper.CustomPrint(f"❌ [{chatroom_name}] 클립보드 초기화 실패: {e}")
                     time.sleep(retry_delay)
