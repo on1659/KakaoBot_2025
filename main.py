@@ -53,7 +53,7 @@ def main():
     while True:
         for chat in chatList:
             chat.run()
-        time.sleep(0.5)
+        time.sleep(0.1)  # 0.5초에서 0.1초로 감소
 
 if __name__ == '__main__':
     main()
