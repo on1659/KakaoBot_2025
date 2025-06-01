@@ -49,8 +49,9 @@ class ChatProcess:
         CopyText = self.copy_cheat(self.chatroom_name, self.chatroomHwnd, self.hwndListControl)
 
         df = self.parse_chat_log(CopyText)
-        self.CustomPrint("[최초] 파싱 결과:")
-        self.CustomPrint(df)
+        # 파싱 결과는 콘솔에만 출력하고 파일에는 저장하지 않음
+        self.CustomPrint(f"[최초] 파싱 결과:", saveLog=False)
+        self.CustomPrint(str(df), saveLog=False)
 
         # 마지막으로 읽은 메시지의 line_idx를 구함 (가장 마지막 행)
         if not df.empty:
@@ -120,7 +121,7 @@ class ChatProcess:
             for cmd_key, func_ptr in result:
                 self.CustomPrint(cmd_key)
         elif Helper.is_debug_mode():
-            self.CustomPrint("신규 채팅이 없습니다.")
+            self.CustomPrint("신규 채팅이 없습니다.", saveLog=False)
 
 
     def init_open_romm(self, chatroom_name):
@@ -545,8 +546,10 @@ class ChatProcess:
         pattern = r"^" + re.escape(chat_command) + r"\s*"
         return re.sub(pattern, "", command_str)
 
-    def CustomPrint(self, messages):
-        Helper.CustomPrint(f"{self.chatroom_name}-{messages}")
+    def CustomPrint(self, messages, saveLog=True):
+        print(f"{self.chatroom_name}-{messages}")  # 항상 콘솔에 출력
+        if saveLog:
+            Helper.CustomPrint(f"{self.chatroom_name}-{messages}")
 
 if __name__ == "__main__":
    proc = ChatProcess("이더")
