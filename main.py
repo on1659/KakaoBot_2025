@@ -16,11 +16,23 @@ def check_and_update():
             Helper.CustomPrint("✅ 업데이트가 완료되었습니다.")
             Helper.CustomPrint("🔄 프로그램을 재시작합니다... (3초 후)")
             time.sleep(3)  # 사용자가 메시지를 읽을 수 있도록 잠시 대기
+            
             # Windows에서 프로그램 재시작
             python = sys.executable
             script = os.path.abspath(sys.argv[0])
-            subprocess.Popen([python, script])
-            sys.exit(0)  # 현재 프로세스 종료
+            # 현재 작업 디렉토리 저장
+            cwd = os.getcwd()
+            
+            # 새 프로세스 시작
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            subprocess.Popen([python, script], 
+                           cwd=cwd,
+                           startupinfo=startupinfo,
+                           creationflags=subprocess.CREATE_NEW_CONSOLE)
+            
+            # 현재 프로세스 종료
+            sys.exit(0)
         else:
             Helper.CustomPrint("❌ 업데이트에 실패했습니다. 기존 버전으로 실행합니다.")
     else:
