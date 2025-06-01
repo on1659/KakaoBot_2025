@@ -67,8 +67,8 @@ def check_github_updates():
         # 현재 브랜치의 최신 커밋 해시 가져오기
         current_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('utf-8').strip()
         
-        # 원격 저장소의 최신 커밋 해시 가져오기
-        subprocess.run(['git', 'fetch', 'origin'], check=True)
+        # 원격 저장소의 최신 커밋 해시 가져오기 (일반 메시지 색상 비활성화)
+        subprocess.run(['git', '-c', 'color.branch=never', '-c', 'color.status=never', 'fetch', 'origin'], check=True)
         remote_hash = subprocess.check_output(['git', 'rev-parse', f"origin/{current_branch}"]).decode('utf-8').strip()
         
         if current_hash != remote_hash:
@@ -91,13 +91,13 @@ def perform_git_update():
         current_branch = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).decode('utf-8').strip()
             
         # 현재 변경사항 저장
-        subprocess.run(['git', 'stash'], check=True)
+        subprocess.run(['git', '-c', 'color.branch=never', '-c', 'color.status=never', 'stash'], check=True)
         
         # 원격 저장소에서 최신 변경사항 가져오기
-        subprocess.run(['git', 'pull', 'origin', current_branch], check=True)
+        subprocess.run(['git', '-c', 'color.branch=never', '-c', 'color.status=never', 'pull', 'origin', current_branch], check=True)
         
         # 저장된 변경사항 복원
-        subprocess.run(['git', 'stash', 'pop'], check=True)
+        subprocess.run(['git', '-c', 'color.branch=never', '-c', 'color.status=never', 'stash', 'pop'], check=True)
         
         CustomPrint("✅ GitHub 업데이트가 완료되었습니다.")
         return True
