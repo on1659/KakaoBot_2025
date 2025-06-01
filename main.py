@@ -3,6 +3,7 @@ from Lib import dataManager, Helper
 from Lib import chat_process, json_data_manager
 import sys
 import os
+import subprocess
 
 def check_and_update():
     """
@@ -15,8 +16,11 @@ def check_and_update():
             Helper.CustomPrint("✅ 업데이트가 완료되었습니다.")
             Helper.CustomPrint("🔄 프로그램을 재시작합니다... (3초 후)")
             time.sleep(3)  # 사용자가 메시지를 읽을 수 있도록 잠시 대기
+            # Windows에서 프로그램 재시작
             python = sys.executable
-            os.execl(python, python, *sys.argv)
+            script = os.path.abspath(sys.argv[0])
+            subprocess.Popen([python, script])
+            sys.exit(0)  # 현재 프로세스 종료
         else:
             Helper.CustomPrint("❌ 업데이트에 실패했습니다. 기존 버전으로 실행합니다.")
     else:
