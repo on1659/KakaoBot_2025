@@ -4,6 +4,7 @@ from Lib import chat_process, json_data_manager
 import sys
 import os
 import subprocess
+import json
 
 def check_and_update():
     """
@@ -39,6 +40,9 @@ def check_and_update():
         Helper.CustomPrint("✅ 최신 버전입니다.")
 
 def main():
+    # API 키 로드
+    json_data_manager.load_api_keys()
+    
     # GitHub 업데이트 확인
     check_and_update()
     
