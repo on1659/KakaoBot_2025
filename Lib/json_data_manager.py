@@ -39,8 +39,8 @@ def save_chatroom_info(chatroom_name, chat_command, member_count, file_path=CHAT
     # 새로운 항목(수정 or 추가) 준비
     chatroom_data = {
         "chatroom_name": chatroom_name,
-        "member_count": member_count
-        # 필요한 필드가 더 있다면 여기에 추가
+        "member_count": member_count,
+        "gpt_model": "gpt-3.5-turbo"  # 기본값으로 gpt-3.5-turbo 설정
     }
 
     Helper.CustomPrint("---- Step 2: Check if the chatroom already exists ----")
@@ -49,6 +49,8 @@ def save_chatroom_info(chatroom_name, chat_command, member_count, file_path=CHAT
         if entry.get("chatroom_name") == chatroom_name:
             Helper.CustomPrint(f"    [DEBUG] 동일한 채팅방 이름을 발견: {chatroom_name}, 기존 인원수={entry.get('member_count')}")
             entry["member_count"] = member_count  # 기존 항목 수정
+            if "gpt_model" not in entry:  # gpt_model이 없으면 추가
+                entry["gpt_model"] = "gpt-3.5-turbo"
             found = True
             break
 
