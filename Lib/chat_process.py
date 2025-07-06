@@ -84,7 +84,9 @@ class ChatProcess:
         
         # 현재 포커스된 창이 카카오톡 창인 경우, 포커스 해제
         if "카카오톡" in current_focus_title:
-            win32gui.SetForegroundWindow(None)
+            # 포커스 해제를 위해 데스크톱 창으로 포커스 이동
+            desktop_hwnd = win32gui.GetDesktopWindow()
+            win32gui.SetForegroundWindow(desktop_hwnd)
             time.sleep(0.2)  # 포커스 해제 대기
         
         # 창을 전면으로 가져오기
@@ -94,7 +96,8 @@ class ChatProcess:
         # 포커스가 변경되었는지 확인
         if win32gui.GetForegroundWindow() != hwndMain:
             # 한 번 더 시도
-            win32gui.SetForegroundWindow(None)
+            desktop_hwnd = win32gui.GetDesktopWindow()
+            win32gui.SetForegroundWindow(desktop_hwnd)
             time.sleep(0.2)
             win32gui.SetForegroundWindow(hwndMain)
             time.sleep(0.3)
@@ -250,7 +253,9 @@ class ChatProcess:
                     else:
                         # 현재 포커스된 창이 카카오톡 창인 경우, 포커스 해제
                         if "카카오톡" in current_focus_title:
-                            win32gui.SetForegroundWindow(None)
+                            # 포커스 해제를 위해 데스크톱 창으로 포커스 이동
+                            desktop_hwnd = win32gui.GetDesktopWindow()
+                            win32gui.SetForegroundWindow(desktop_hwnd)
                             time.sleep(0.2)
                         
                         # 창을 전면으로 가져오기
@@ -407,6 +412,17 @@ class ChatProcess:
         채팅 메시지 라인(예: "[김영태] [오후 11:10] [카카오맵] 자양동명진센트라임")은
         이름, 시간, 메시지를 추출하여, 메시지가 여러 줄인 경우 후속 줄은 이전 메시지에 이어붙입니다.
         """
+        # 빈 텍스트인 경우 빈 DataFrame 반환
+        if not text or not text.strip():
+            return pd.DataFrame({
+                'line_idx': [],
+                'name': [],
+                'raw_time': [],
+                'date': [],
+                'timestamp': [],
+                'message': []
+            })
+        
         chat_pattern = re.compile(r'^\[(?P<name>[^\]]+)\]\s+\[(?P<time>[^\]]+)\]\s+(?P<msg>.+)$')
         date_pattern = re.compile(r'^(?P<date>\d{4}년\s*\d+월\s*\d+일.*)$')
 
@@ -507,6 +523,14 @@ class ChatProcess:
            해당 key에 대응하는 함수포인터 + 전체 메시지(또는 일부)를 묶어
            리스트 형태로 반환한다.
         """
+
+        # DataFrame이 비어있거나 'line_idx' 컬럼이 없는 경우 처리
+        if message_df.empty:
+            return []
+        
+        if 'line_idx' not in message_df.columns:
+            Helper.CustomPrint(f"❌ [{self.chatroom_name}] DataFrame에 'line_idx' 컬럼이 없습니다. 컬럼: {list(message_df.columns)}")
+            return []
 
         # 새 메시지: line_idx > self.last_index
         new_msgs = message_df[message_df['line_idx'] > self.last_index]
