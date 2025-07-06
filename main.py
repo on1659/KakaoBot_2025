@@ -22,6 +22,9 @@ def check_and_update():
         Helper.CustomPrint("🔄 새로운 업데이트가 있습니다. 업데이트를 시작합니다...")
         if Helper.perform_git_update():
             Helper.CustomPrint("✅ 업데이트가 완료되었습니다.")
+            Helper.CustomPrint("✅ 프로그램을 재실행해주세요.")
+            sys.exit(0)
+            
             Helper.CustomPrint("🔄 프로그램을 재시작합니다... (3초 후)")
             time.sleep(3)  # 사용자가 메시지를 읽을 수 있도록 잠시 대기
             
@@ -68,6 +71,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
