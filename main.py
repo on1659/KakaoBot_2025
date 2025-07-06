@@ -6,11 +6,18 @@ import os
 import subprocess
 import json
 
+
 def check_and_update():
     """
     GitHub 업데이트를 확인하고 필요한 경우 업데이트를 수행합니다.
     """
     Helper.CustomPrint("🔍 GitHub 업데이트 확인 중...")
+    
+    # Git 설정 확인
+    if not Helper.check_git_configuration():
+        Helper.CustomPrint("⚠️ Git 설정에 문제가 있습니다. 업데이트를 건너뜁니다.")
+        return
+    
     if Helper.check_github_updates():
         Helper.CustomPrint("🔄 새로운 업데이트가 있습니다. 업데이트를 시작합니다...")
         if Helper.perform_git_update():
