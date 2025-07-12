@@ -75,6 +75,61 @@ def save_chatroom_info(chatroom_name, chat_command, member_count, file_path=CHAT
     return "", "none"
 
 
+def update_chatroom_membercount(chatroom_name, chat_command, member_count, file_path=CHATROOM_FILE_PATH):
+    update_chatroom_data(chatroom_name, "member_count", member_count, file_path)
+    return "", "none"
+
+    
+def update_chatroom_gptmodele(chatroom_name, chat_command, member_count, file_path=CHATROOM_FILE_PATH):
+    update_chatroom_data(chatroom_name, "gpt_model", member_count, file_path)
+    return "", "none"
+    
+def update_chatroom_data(chatroom_name, column, value, file_path=CHATROOM_FILE_PATH):
+    """
+    chatroom_name에 해당하는 채팅방의 column 값을 value로 변경한다.
+    column은 'chatroom_name'을 제외한 key만 허용한다.
+    json_path가 None이면 DefaultSetting.ini에서 CHATROOM_FILE_PATH를 사용한다.
+    """
+    # 파일 읽기
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            if not isinstance(data, list):
+                Helper.CustomPrint(f"[ERROR] JSON 데이터가 리스트가 아닙니다: {file_path}")
+                return False
+    except FileNotFoundError:
+        Helper.CustomPrint(f"[ERROR] 파일을 찾을 수 없습니다: {file_path}")
+        return False
+    except json.JSONDecodeError as e:
+        Helper.CustomPrint(f"[ERROR] JSON 파싱 에러: {e}")
+        return False
+
+    # chatroom_name에 해당하는 항목 찾기
+    found = False
+    for entry in data:
+        if entry.get("chatroom_name") == chatroom_name:
+            if column == "chatroom_name":
+                Helper.CustomPrint("[ERROR] 'chatroom_name' 컬럼은 수정할 수 없습니다.")
+                return False
+            entry[column] = value
+            found = True
+            break
+
+    if not found:
+        Helper.CustomPrint(f"[ERROR] 채팅방 '{chatroom_name}'을(를) 찾을 수 없습니다.")
+        return False
+
+    # 파일 저장
+    try:
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        Helper.CustomPrint(f"[INFO] '{chatroom_name}'의 '{column}' 값을 '{value}'로 변경 완료.")
+        return True
+    except Exception as e:
+        Helper.CustomPrint(f"[ERROR] 파일 저장 중 에러: {e}")
+        return False
+
+
 # 사용 예시 (직접 테스트 시 아래 주석 해제해서 실행해 보세요)
 # if __name__ == "__main__":
 #     save_chatroom_info("테스트방", "#방인원", 10)
