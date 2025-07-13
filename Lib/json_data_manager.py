@@ -78,11 +78,6 @@ def save_chatroom_info(chatroom_name, chat_command, member_count, file_path=CHAT
 def update_chatroom_membercount(chatroom_name, chat_command, member_count, file_path=CHATROOM_FILE_PATH):
     update_chatroom_data(chatroom_name, "member_count", member_count, file_path)
     return "", "none"
-
-    
-def update_chatroom_gptmodele(chatroom_name, chat_command, member_count, file_path=CHATROOM_FILE_PATH):
-    update_chatroom_data(chatroom_name, "gpt_model", member_count, file_path)
-    return "", "none"
     
 def update_chatroom_data(chatroom_name, column, value, file_path=CHATROOM_FILE_PATH):
     """
@@ -92,7 +87,7 @@ def update_chatroom_data(chatroom_name, column, value, file_path=CHATROOM_FILE_P
     """
     # 파일 읽기
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, 'r', encoding='utf-8') as f: 
             data = json.load(f)
             if not isinstance(data, list):
                 Helper.CustomPrint(f"[ERROR] JSON 데이터가 리스트가 아닙니다: {file_path}")
@@ -177,6 +172,16 @@ def getJsonData(file_path, search_key: str, search_value: str, column_name: str)
     return None
 
 def get_chatroom_data(chatroom_name: str, column_name: str, file_path=CHATROOM_FILE_PATH) -> any:
+    """
+    채팅방 이름과 컬럼명을 받아서 해당 값을 검색하는 함수
+    
+    Args:
+        chatroom_name (str): 검색할 채팅방 이름
+        column_name (str): 검색할 컬럼명 (예: "gpt_model", "member_count")
+    
+    Returns:
+        str: 해당 컬럼의 값, 없으면 None
+    """
     return getJsonData(file_path, "chatroom_name", chatroom_name, column_name)
 
 import json
@@ -240,7 +245,6 @@ def load_api_keys(json_path=API_KEY_FILE_PATH):
 
     Helper.CustomPrint("==== DEBUG END ====")
     return loaded_keys
-
 #
 def test():
     # 📝 **사용 예시:**

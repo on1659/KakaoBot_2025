@@ -48,6 +48,12 @@ BOT_NAME = DefaultSettingConfig.get('BotName', 'name')
 GPT_MAX_TOKEN = DefaultSettingConfig.get('GPT', 'maxToken')
 # ─── [GPT Info] GPT 관련 정보들들 Load ────────────────────────
 
+# ─── [GPT_MODEL] GPT 모델 리스트 Load ───────────────────────
+if 'GPT_MODEL' in DefaultSettingConfig:
+    GPT_MODEL_LIST = [model for model, _ in DefaultSettingConfig.items('GPT_MODEL')]
+else:
+    GPT_MODEL_LIST = ["gpt-3.5-turbo", "gpt-4o", "gpt-4o-mini"]
+# ─── [GPT_MODEL] GPT 모델 리스트 Load ───────────────────────
 
 
 def format_available_commands(chat_command) -> str:
@@ -75,7 +81,6 @@ def GetData(opentalk_name, chat_command, message):
     """
     return format_available_commands(chat_command), "text"
 
-
 # ─── 커맨드 맵 정의하기 위해서 선언 ─────────────────────────────────────────────────────
 
 from Lib import youtube, convert_naver_map, every_mention, json_data_manager
@@ -91,8 +96,8 @@ chat_command_Map = [
     ['[카카오맵]', "카카오맵->네이버지도 변환기능 \n 카카오맵url을 올리면 자동으로 네이버 주소로 변환해줍니다", convert_naver_map.GetData],
     ['#all', "#all \n모든 인원을 호출합니다. 단! #방인원 (숫자)로 현재 방인원에 정보를 저장해야합니다", every_mention.GetData],
     ['#방인원', "#방인원 (숫자) \n  #all을 사용하기 위한 기능으로, 현재 방인원을 직접 설정해주셔야합니다.",  json_data_manager.update_chatroom_membercount],
-    ['#gpt리스트', "#gpt리스트 \n #현재 사용가능한 GPT 모델 리스트들을 알려줍니다.",  gpt_api.get_available_gpt_models],
-    ['#gpt모델변경', "#gpt모델변경경 (# 리스트트) \n  #all을 사용하기 위한 기능으로, 현재 방인원을 직접 설정해주셔야합니다.",  json_data_manager.update_chatroom_gptmodele],
+    ['#모델변경', "#모델변경 (모델명) \n  현재 채팅방에서 사용 가능한 모델 중 하나로 변경이 가능합니다.",  gpt_api.update_chatroom_gptmodele],
+    ['#모델확인', "#모델확인 \n  현재 채팅방에서 사용중인 모델을 검색합니다.",  gpt_api.chatroom_gpt_model],
     ['#gpt', "#gpt (내용) \n gpt 에 검색하여 나온 질의를 응답해줍니다. 비용문제로 안될 수 있습니다.", gpt_api.getData],
     ['https://www.instagram.com/', "인스타 한장 요약 \n 인스타 링크를 올리면 한장 요약을 해주는 기능입니다", insta.GetData],
    # ['#펀드', "#펀드보유 (종목명/티커) (N일)\n미국 주식의 상위 펀드 보유 현황과 최근 N일 내 변동을 보여줍니다.", fund_holdings_service.GetFundHoldings],

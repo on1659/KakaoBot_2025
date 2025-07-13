@@ -544,7 +544,7 @@ class ChatProcess:
                 continue
 
             for chat_command, desc, chat_func in dataManager.chat_command_Map:
-                if re.match(rf"^{re.escape(chat_command)}(\s|$)", msg.strip()):
+                if chat_command in msg:
                     message = self.split_command(chat_command, msg)
                     resultString, result_type = chat_func(self.chatroom_name, chat_command, message)
 
