@@ -128,21 +128,107 @@ class ChatProcess:
 
 
     def init_open_romm(self, chatroom_name):
+        """채팅방 초기화 및 창 핸들 검증"""
+        try:
+            # 카카오톡 메인 창 찾기
+            hWndKaKao = win32gui.FindWindow(None, "카카오톡")
+            if hWndKaKao == 0:
+                Helper.CustomPrint(f"❌ 카카오톡 창을 찾을 수 없습니다. 카카오톡이 실행 중인지 확인해주세요.")
+                return
+            
+            # 카카오톡 창이 최소화되어 있다면 복원
+            if win32gui.IsIconic(hWndKaKao):
+                win32gui.ShowWindow(hWndKaKao, win32con.SW_RESTORE)
+                time.sleep(0.5)
+            
+            # 채팅방 검색 Edit 컨트롤 찾기
+            hwndkakao_edit1 = win32gui.FindWindowEx(hWndKaKao, None, "EVA_ChildWindow", None)
+            if hwndkakao_edit1 == 0:
+                Helper.CustomPrint(f"❌ 카카오톡 Edit 컨트롤을 찾을 수 없습니다.")
+                return
+                
+            hwndkakao_edit2_1 = win32gui.FindWindowEx(hwndkakao_edit1, None, "EVA_Window", None)
+            hwndkakao_edit2_2 = win32gui.FindWindowEx(hwndkakao_edit1, hwndkakao_edit2_1, "EVA_Window", None)
+            self.hwndkakao_edit3 = win32gui.FindWindowEx(hwndkakao_edit2_2, None, "Edit", None)
+            
+            if self.hwndkakao_edit3 == 0:
+                Helper.CustomPrint(f"❌ 카카오톡 검색 Edit을 찾을 수 없습니다.")
+                return
 
-        # # 채팅방 목록 검색하는 Edit (채팅방이 열려있지 않아도 전송 가능하기 위하여)
-        hWndKaKao = win32gui.FindWindow(None, "카카오톡")
-        hwndkakao_edit1 = win32gui.FindWindowEx(hWndKaKao, None, "EVA_ChildWindow", None)
-        hwndkakao_edit2_1 = win32gui.FindWindowEx(hwndkakao_edit1, None, "EVA_Window", None)
-        hwndkakao_edit2_2 = win32gui.FindWindowEx(hwndkakao_edit1, hwndkakao_edit2_1, "EVA_Window", None)  # ㄴ시작핸들을 첫번째 자식 핸들(친구목록) 을 줌(hwndkakao_edit2_1)
-        self.hwndkakao_edit3 = win32gui.FindWindowEx(hwndkakao_edit2_2, None, "Edit", None)
+            # 채팅방 창 핸들 찾기
+            self.chatroomHwnd = win32gui.FindWindow(None, chatroom_name)
+            
+            # 채팅방이 없으면 검색으로 열기
+            if self.chatroomHwnd == 0:
+                Helper.CustomPrint(f"📝 채팅방 '{chatroom_name}'을 검색하여 열기 시도...")
+                
+                # 검색창에 채팅방 이름 입력
+                SendMessage(self.hwndkakao_edit3, win32con.WM_SETTEXT, 0, chatroom_name)
+                time.sleep(1)
+                self.SendReturn(self.hwndkakao_edit3)
+                time.sleep(1)
+                
+                # 다시 채팅방 창 핸들 찾기
+                self.chatroomHwnd = win32gui.FindWindow(None, chatroom_name)
+                
+                if self.chatroomHwnd == 0:
+                    Helper.CustomPrint(f"❌ 채팅방 '{chatroom_name}'을 찾을 수 없습니다.")
+                    return
+                else:
+                    Helper.CustomPrint(f"✅ 채팅방 '{chatroom_name}' 열기 성공")
+            else:
+                Helper.CustomPrint(f"✅ 채팅방 '{chatroom_name}' 이미 열려있음")
+                
+        except Exception as e:
+            Helper.CustomPrint(f"❌ 채팅방 초기화 중 오류 발생: {str(e)}")
+            return
 
-        self.chatroomHwnd = win32gui.FindWindow(None, chatroom_name)
+    def validate_window_handle(self, hwnd, window_name):
+        """창 핸들이 유효한지 검증하고 필요시 재검색"""
+        if hwnd == 0:
+            return False
+            
+        if not win32gui.IsWindow(hwnd):
+            Helper.CustomPrint(f"❌ [{window_name}] 창 핸들이 유효하지 않습니다: {hwnd}")
+            return False
+            
+        # 창이 숨겨져 있거나 최소화되어 있는지 확인
+        if not win32gui.IsWindowVisible(hwnd):
+            Helper.CustomPrint(f"❌ [{window_name}] 창이 숨겨져 있습니다: {hwnd}")
+            return False
+            
+        return True
 
-        # # Edit에 검색 _ 입력되어있는 텍스트가 있어도 덮어쓰기됨
-        SendMessage(self.hwndkakao_edit3, win32con.WM_SETTEXT, 0, chatroom_name)
-        time.sleep(1)  # 안정성 위해 필요\
-        self.SendReturn(self.hwndkakao_edit3)
-        time.sleep(1)
+
+    def refresh_window_handles(self):
+        """창 핸들들을 새로고침"""
+        try:
+            # 카카오톡 메인 창 재검색
+            hWndKaKao = win32gui.FindWindow(None, "카카오톡")
+            if hWndKaKao == 0:
+                Helper.CustomPrint("❌ 카카오톡 창을 찾을 수 없습니다.")
+
+
+                return False
+                
+            # 채팅방 창 핸들 재검색
+            self.chatroomHwnd = win32gui.FindWindow(None, self.chatroom_name)
+            if self.chatroomHwnd == 0:
+                Helper.CustomPrint(f"❌ 채팅방 '{self.chatroom_name}' 창을 찾을 수 없습니다.")
+                return False
+                
+            # 리스트 컨트롤 핸들 재검색
+            self.hwndListControl = win32gui.FindWindowEx(self.chatroomHwnd, None, "EVA_VH_ListControl_Dblclk", None)
+            if self.hwndListControl == 0:
+                Helper.CustomPrint(f"❌ 채팅방 리스트 컨트롤을 찾을 수 없습니다.")
+                return False
+                
+            Helper.CustomPrint(f"✅ 창 핸들 새로고침 완료: {self.chatroom_name}")
+            return True
+            
+        except Exception as e:
+            Helper.CustomPrint(f"❌ 창 핸들 새로고침 중 오류: {str(e)}")
+            return False
 
     def SendReturn(self, hWnd):
         PostMessage(hWnd, win32con.WM_KEYDOWN, win32con.VK_RETURN, 0)
@@ -238,10 +324,20 @@ class ChatProcess:
                 # 포커스 강제
                 try:
                     # 창이 유효한지 확인
-                    if not win32gui.IsWindow(hwndMain):
-                        Helper.CustomPrint(f"❌ [{chatroom_name}] 창 핸들이 유효하지 않습니다: {hwndMain}")
-                        time.sleep(retry_delay)
-                        continue
+                    if not self.validate_window_handle(hwndMain, chatroom_name):
+                        # 창 핸들이 유효하지 않으면 새로고침 시도
+                        if attempt == 0:  # 첫 번째 시도에서만 새로고침
+                            Helper.CustomPrint(f"🔄 [{chatroom_name}] 창 핸들 새로고침 시도...")
+                            if self.refresh_window_handles():
+                                # 새로고침 후 새로운 핸들 사용
+                                hwndMain = self.chatroomHwnd
+                                hwndListControl = self.hwndListControl
+                            else:
+                                time.sleep(retry_delay)
+                                continue
+                        else:
+                            time.sleep(retry_delay)
+                            continue
                         
                     # 창을 전면으로 가져오기 전에 현재 포커스된 창 저장
                     current_focus = win32gui.GetForegroundWindow()

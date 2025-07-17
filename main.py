@@ -1,6 +1,7 @@
 import time
 from Lib import dataManager, Helper
 from Lib import chat_process, json_data_manager
+from Lib import feather_log_monitor
 import sys
 import os
 import subprocess
@@ -56,12 +57,17 @@ def main():
     # GitHub 업데이트 확인
     check_and_update()
     
-    # ChatProcess 인스턴스들을 저장할 리스트
+    # ChatProcess 인스턴스들을 저장할 리스트 (전역 변수로 설정)
+    global chatList
     chatList = []
 
     # 각 오픈톡방 이름에 대해 ChatProcess 인스턴스를 생성하여 리스트에 추가
     for name in dataManager.kakao_opentalk_name_List:
         chatList.append(chat_process.ChatProcess(name))
+    
+    # Feather 로그 모니터링 시작 (chatList 초기화 후)
+    feather_log_monitor.set_global_chat_list(chatList)
+    feather_monitor = feather_log_monitor.start_feather_monitoring_from_config()
 
     # 무한 루프: 주기적으로 각 ChatProcess의 run() 메서드를 호출
     while True:
