@@ -121,16 +121,22 @@ class FeatherLogMonitor:
             if match:
                 player_name = match.group(1)
                 server_name = Path(server_path).name
-                self._send_join_notification(player_name, server_name)
+                message = f"[{player_name}]님이 로그인하셨습니다."
+                
+                Helper.CustomPrint(f"🎮 {player_name}님이 {server_name} 서버에 접속했습니다!")
+                self._send_kakao_message(message)
                 return
         
-        # 퇴장 감지 (선택사항)
+        # 퇴장 감지
         for pattern in self.leave_patterns:
             match = re.search(pattern, line)
             if match:
                 player_name = match.group(1)
                 server_name = Path(server_path).name
-                self._send_leave_notification(player_name, server_name)
+                message = f"[{player_name}]님이 로그아웃하셨습니다."
+                
+                Helper.CustomPrint(f"🚪 {player_name}님이 {server_name} 서버에서 퇴장했습니다.")
+                self._send_kakao_message(message)
                 return
     
     def _is_log_after_start_time(self, log_line):
@@ -152,48 +158,18 @@ class FeatherLogMonitor:
             return log_time >= start_time
         except:
             return True  # 파싱 오류 시 처리
-    
-    def _send_join_notification(self, player_name, server_name):
-        """접속 알림 전송"""
-        message = f"[{player_name}]님이 로그인하셨습니다."
-        
-        Helper.CustomPrint(f"🎮 {player_name}님이 {server_name} 서버에 접속했습니다!")
-        
-        # 카카오톡 알림 전송 (chat_process를 통해)
-        self._send_kakao_message(message)
-    
-    def _send_leave_notification(self, player_name, server_name):
-        """퇴장 알림 전송"""
-        message = f"[{player_name}]님이 로그아웃하셨습니다."
-        
-        Helper.CustomPrint(f"🚪 {player_name}님이 {server_name} 서버에서 퇴장했습니다.")
-        
-        # 카카오톡 알림 전송
-        self._send_kakao_message(message)
-    
     def _send_kakao_message(self, message):
-        """카카오톡 메시지 전송"""
-        try:
-            # 전역 chatList 사용
-            if global_chat_list:
-                # 알림 방을 찾아서 메시지 전송
-                for chat in global_chat_list:
-                    if chat.chatroom_name == self.notification_room_name:
-                        # ChatProcess.send 메서드 사용 (더 안정적)
-                        try:
-                            chat.send(message, "text")
-                            Helper.CustomPrint(f"✅ 카카오톡 알림 전송 완료: {self.notification_room_name}")
-                            return
-                        except Exception as e:
-                            Helper.CustomPrint(f"❌ 메시지 전송 실패: {str(e)}")
-                
-                Helper.CustomPrint(f"⚠️ 알림 방을 찾을 수 없습니다: {self.notification_room_name}")
-            else:
-                # chatList가 아직 초기화되지 않았을 때는 나중에 다시 시도
-                Helper.CustomPrint(f"⏳ chatList가 아직 초기화되지 않았습니다. 잠시 후 다시 시도합니다.")
-                
-        except Exception as e:
-            Helper.CustomPrint(f"❌ 카카오톡 메시지 전송 오류: {str(e)}")
+        """카카오톡 메시지를 큐에 추가"""
+        if not global_chat_list:
+            Helper.CustomPrint(f"⏳ chatList가 아직 초기화되지 않았습니다.")
+            return
+            
+        for chat in global_chat_list:
+            if chat.chatroom_name == self.notification_room_name:
+                chat.add_message_to_queue(message, "text")
+                return
+        
+        Helper.CustomPrint(f"⚠️ 알림 방을 찾을 수 없습니다: {self.notification_room_name}")
 
 # 전역 변수들
 feather_monitor = None
@@ -277,4 +253,15 @@ def stop_feather_monitoring_command(chatroom_name, chat_command, message):
         return "⚠️ 현재 Feather 로그 모니터링이 실행되고 있지 않습니다.", "text"
     
     stop_feather_monitoring()
-    return "⏹️ Feather 로그 모니터링이 중지되었습니다.", "text" 
+    return "⏹️ Feather 로그 모니터링이 중지되었습니다.", "text"
+
+def check_feather_monitoring_status(chatroom_name, chat_command, message):
+    """#마크노티상태 명령어 처리"""
+    global feather_monitor
+    
+    if feather_monitor and feather_monitor.monitoring:
+        server_count = len(feather_monitor.server_paths)
+        notification_room = feather_monitor.notification_room_name
+        return f"🎮 Feather 로그 모니터링 상태: 실행 중\n📁 모니터링 서버: {server_count}개\n💬 알림 방: {notification_room}", "text"
+    else:
+        return "⏹️ Feather 로그 모니터링 상태: 중지됨", "text" 

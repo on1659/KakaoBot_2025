@@ -7,6 +7,7 @@ import pandas as pd
 from . import Helper
 from . import dataManager
 import win32clipboard
+import queue
 
 PBYTE256 = ctypes.c_ubyte * 256
 _user32 = ctypes.WinDLL("user32")
@@ -32,6 +33,7 @@ class ChatProcess:
         self.last_index = 0
         self.IsLoad = 0
         self.BotName = dataManager.BOT_NAME
+        self.message_queue = queue.Queue()  # 메시지 큐 추가
         self.init()
 
     def init(self):
@@ -125,7 +127,45 @@ class ChatProcess:
                 self.CustomPrint(cmd_key)
         elif Helper.is_debug_mode():
             self.CustomPrint("신규 채팅이 없습니다.", saveLog=False)
+        
+        # 메시지 큐 처리 (기존 명령어 처리 후)
+        self.process_message_queue()
 
+    def add_message_to_queue(self, message, message_type="text"):
+        """메시지 큐에 메시지 추가 (스레드 안전)"""
+        try:
+            self.message_queue.put((message, message_type), block=False)
+            self.CustomPrint(f"📨 메시지 큐에 추가됨: {message[:30]}...")
+        except queue.Full:
+            self.CustomPrint(f"❌ 메시지 큐가 가득참: {message[:30]}...")
+
+    def process_message_queue(self):
+        """메시지 큐 처리 (메인 스레드에서만 호출)"""
+        processed_count = 0
+        max_process = 5  # 한 번에 최대 5개 메시지 처리
+        
+        while not self.message_queue.empty() and processed_count < max_process:
+            try:
+                message, message_type = self.message_queue.get(block=False)
+                self.CustomPrint(f"📤 큐에서 메시지 전송: {message[:30]}...")
+                
+                # 실제 메시지 전송
+                self.send(message, message_type)
+                
+                self.message_queue.task_done()
+                processed_count += 1
+                
+                # 메시지 간 충분한 간격
+                time.sleep(0.5)
+                
+            except queue.Empty:
+                break
+            except Exception as e:
+                self.CustomPrint(f"❌ 큐 메시지 처리 오류: {str(e)}")
+                break
+        
+        if processed_count > 0:
+            self.CustomPrint(f"✅ 메시지 큐에서 {processed_count}개 메시지 처리 완료")
 
     def init_open_romm(self, chatroom_name):
         """채팅방 초기화 및 창 핸들 검증"""

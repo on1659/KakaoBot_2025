@@ -102,6 +102,7 @@ chat_command_Map = [
     ['#gpt', "#gpt (내용) \n gpt 에 검색하여 나온 질의를 응답해줍니다. 비용문제로 안될 수 있습니다.", gpt_api.getData],
     ['#마크노티시작', "#마크노티시작 \n Feather 마인크래프트 서버 로그 모니터링을 시작합니다. (특정 채팅방에서만 가능합니다)", feather_log_monitor.start_feather_monitoring_command],
     ['#마크노티종료', "#마크노티종료 \n Feather 마인크래프트 서버 로그 모니터링을 중지합니다. (특정 채팅방에서만 가능합니다)", feather_log_monitor.stop_feather_monitoring_command],
+    ['#마크노티상태', "#마크노티상태 \n Feather 마인크래프트 서버 로그 모니터링 상태를 확인합니다.", feather_log_monitor.check_feather_monitoring_status],
     ['https://www.instagram.com/', "인스타 한장 요약 \n 인스타 링크를 올리면 한장 요약을 해주는 기능입니다", insta.GetData],
    # ['#펀드', "#펀드보유 (종목명/티커) (N일)\n미국 주식의 상위 펀드 보유 현황과 최근 N일 내 변동을 보여줍니다.", fund_holdings_service.GetFundHoldings],
 ]
