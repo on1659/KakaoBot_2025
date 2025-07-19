@@ -31,11 +31,15 @@ class FeatherLogMonitor:
             r'\[.*?\] \[Server thread/INFO\]: (\w+) 로그인'
         ]
         
-        # 퇴장 감지 패턴들 (선택사항)
+        # 퇴장 감지 패턴들
         self.leave_patterns = [
             r'\[.*?\] \[Server thread/INFO\]: (\w+) left the game',
             r'\[.*?\] \[Server thread/INFO\]: (\w+) disconnected',
-            r'\[.*?\] \[Server thread/INFO\]: (\w+) 퇴장'
+            r'\[.*?\] \[Server thread/INFO\]: (\w+) 퇴장',
+            r'\[.*?\] \[Server thread/INFO\]: (\w+) logged out',
+            r'\[.*?\] \[Server thread/INFO\]: (\w+) has left the server',
+            r'\[.*?\] \[Server thread/INFO\]: UUID of player (\w+) is',
+            r'\[.*?\] \[Server thread/INFO\]: (\w+) lost connection'
         ]
         
         Helper.CustomPrint(f"🔍 Feather 로그 모니터링 초기화 완료")
@@ -159,13 +163,13 @@ class FeatherLogMonitor:
         self._send_kakao_message(message)
     
     def _send_leave_notification(self, player_name, server_name):
-        """퇴장 알림 전송 (선택사항)"""
+        """퇴장 알림 전송"""
         message = f"[{player_name}]님이 로그아웃하셨습니다."
         
         Helper.CustomPrint(f"🚪 {player_name}님이 {server_name} 서버에서 퇴장했습니다.")
         
-        # 카카오톡 알림 전송 (선택사항)
-        # self._send_kakao_message(message)
+        # 카카오톡 알림 전송
+        self._send_kakao_message(message)
     
     def _send_kakao_message(self, message):
         """카카오톡 메시지 전송"""
@@ -175,18 +179,9 @@ class FeatherLogMonitor:
                 # 알림 방을 찾아서 메시지 전송
                 for chat in global_chat_list:
                     if chat.chatroom_name == self.notification_room_name:
-                        # 메시지를 채팅방에 전송 (send_message 대신 직접 입력)
+                        # ChatProcess.send 메서드 사용 (더 안정적)
                         try:
-                            # 채팅방에 포커스
-                            chat.open_room(chat.chatroom_name)
-                            time.sleep(0.5)
-                            
-                            # 메시지 입력 및 전송
-                            import pyautogui
-                            pyautogui.write(message)
-                            time.sleep(0.2)
-                            pyautogui.press('enter')
-                            
+                            chat.send(message, "text")
                             Helper.CustomPrint(f"✅ 카카오톡 알림 전송 완료: {self.notification_room_name}")
                             return
                         except Exception as e:
@@ -258,4 +253,28 @@ def stop_feather_monitoring():
     
     if feather_monitor:
         feather_monitor.stop_monitoring()
-        feather_monitor = None 
+        feather_monitor = None
+
+def start_feather_monitoring_command(chatroom_name, chat_command, message):
+    """#마크노티시작 명령어 처리"""
+    global feather_monitor
+    
+    if feather_monitor and feather_monitor.monitoring:
+        return "⚠️ 이미 Feather 로그 모니터링이 실행 중입니다.", "text"
+    
+    # 설정에서 모니터링 시작
+    monitor = start_feather_monitoring_from_config()
+    if monitor:
+        return "✅ Feather 로그 모니터링이 시작되었습니다! 🎮", "text"
+    else:
+        return "❌ Feather 로그 모니터링 시작에 실패했습니다. 설정을 확인해주세요.", "text"
+
+def stop_feather_monitoring_command(chatroom_name, chat_command, message):
+    """#마크노티종료 명령어 처리"""
+    global feather_monitor
+    
+    if not feather_monitor or not feather_monitor.monitoring:
+        return "⚠️ 현재 Feather 로그 모니터링이 실행되고 있지 않습니다.", "text"
+    
+    stop_feather_monitoring()
+    return "⏹️ Feather 로그 모니터링이 중지되었습니다.", "text" 

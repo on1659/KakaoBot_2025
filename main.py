@@ -31,6 +31,7 @@ def check_and_update():
             
             # Windows에서 프로그램 재시작
             python = sys.executable
+            
             script = os.path.abspath(sys.argv[0])
             # 현재 작업 디렉토리 저장
             cwd = os.getcwd()
@@ -65,8 +66,10 @@ def main():
     for name in dataManager.kakao_opentalk_name_List:
         chatList.append(chat_process.ChatProcess(name))
     
-    # Feather 로그 모니터링 시작 (chatList 초기화 후)
+    # Feather 로그 모니터링을 위한 chatList 설정
     feather_log_monitor.set_global_chat_list(chatList)
+    
+    # DefaultSetting.ini의 enabled 값이 true면 자동으로 모니터링 시작
     feather_monitor = feather_log_monitor.start_feather_monitoring_from_config()
 
     # 무한 루프: 주기적으로 각 ChatProcess의 run() 메서드를 호출

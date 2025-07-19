@@ -245,13 +245,17 @@ class ChatProcess:
         pyautogui.press("enter")
         time.sleep(0.5)
 
-    def send(self, cheat_room_name, hwndMain, text, type):
-
+    def send(self, text, type="text"):
+        """
+        카카오톡 메시지 전송 (개선된 인터페이스)
+        Args:
+            text: 전송할 텍스트 (type="text"일 때)
+            type: "text" 또는 "image"
+        """
         if type == "text":
-            self.sendtext(cheat_room_name, hwndMain, text)
-
+            self.sendtext(self.chatroom_name, self.chatroomHwnd, text)
         elif type == "image":
-            self.send_image(hwndMain, cheat_room_name)
+            self.send_image(self.chatroomHwnd, self.chatroom_name)
 
     def sendtext(self, cheat_room_name, hwndMain, text):
 
@@ -645,7 +649,7 @@ class ChatProcess:
                     resultString, result_type = chat_func(self.chatroom_name, chat_command, message)
 
                     if result_type is not None:
-                        self.send(self.chatroom_name, self.chatroomHwnd, resultString, result_type)  # 메시지 전송
+                        self.send(resultString, result_type)  # 메시지 전송
                         Helper.CustomPrint(f"{self.chatroom_name} - {msg} - [{result_type}]")
 
         # 마지막 메시지 인덱스 갱신

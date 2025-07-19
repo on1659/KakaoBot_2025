@@ -84,7 +84,7 @@ def GetData(opentalk_name, chat_command, message):
 # ─── 커맨드 맵 정의하기 위해서 선언 ─────────────────────────────────────────────────────
 
 from Lib import youtube, convert_naver_map, every_mention, json_data_manager
-from Lib import gpt_api, insta
+from Lib import gpt_api, insta, feather_log_monitor
 # from Lib import fund_holdings_service
 
 # ─── 커맨드 맵 정의 ─────────────────────────────────────────────────────
@@ -95,10 +95,13 @@ chat_command_Map = [
     ['#유툽', "#유툽 (검색) \n 유튜브 검색에서 첫번째 나온 영상을 보여줍니다.", youtube.GetData],
     ['[카카오맵]', "카카오맵->네이버지도 변환기능 \n 카카오맵url을 올리면 자동으로 네이버 주소로 변환해줍니다", convert_naver_map.GetData],
     ['#all', "#all \n모든 인원을 호출합니다. 단! #방인원 (숫자)로 현재 방인원에 정보를 저장해야합니다", every_mention.GetData],
+    ['#all', "#all \n모든 인원을 호출합니다. 단! #방인원 (숫자)로 현재 방인원에 정보를 저장해야합니다", every_mention.GetData],
     ['#방인원', "#방인원 (숫자) \n  #all을 사용하기 위한 기능으로, 현재 방인원을 직접 설정해주셔야합니다.",  json_data_manager.update_chatroom_membercount],
     ['#모델변경', "#모델변경 (모델명) \n  현재 채팅방에서 사용 가능한 모델 중 하나로 변경이 가능합니다.",  gpt_api.update_chatroom_gptmodele],
     ['#모델확인', "#모델확인 \n  현재 채팅방에서 사용중인 모델을 검색합니다.",  gpt_api.chatroom_gpt_model],
     ['#gpt', "#gpt (내용) \n gpt 에 검색하여 나온 질의를 응답해줍니다. 비용문제로 안될 수 있습니다.", gpt_api.getData],
+    ['#마크노티시작', "#마크노티시작 \n Feather 마인크래프트 서버 로그 모니터링을 시작합니다. (특정 채팅방에서만 가능합니다)", feather_log_monitor.start_feather_monitoring_command],
+    ['#마크노티종료', "#마크노티종료 \n Feather 마인크래프트 서버 로그 모니터링을 중지합니다. (특정 채팅방에서만 가능합니다)", feather_log_monitor.stop_feather_monitoring_command],
     ['https://www.instagram.com/', "인스타 한장 요약 \n 인스타 링크를 올리면 한장 요약을 해주는 기능입니다", insta.GetData],
    # ['#펀드', "#펀드보유 (종목명/티커) (N일)\n미국 주식의 상위 펀드 보유 현황과 최근 N일 내 변동을 보여줍니다.", fund_holdings_service.GetFundHoldings],
 ]
