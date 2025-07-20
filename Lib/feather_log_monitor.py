@@ -7,13 +7,14 @@ from datetime import datetime
 from Lib import Helper
 
 class FeatherLogMonitor:
-    def __init__(self, server_paths, notification_room_name):
+    def __init__(self, server_paths, notification_room_name, server_names=None):
         """
         Feather Launcher 마크서버 로그 모니터링 클래스
         
         Args:
             server_paths (list): 서버 로그 경로 리스트
             notification_room_name (str): 알림을 보낼 카카오톡 방 이름
+            server_names (list): 서버 이름 리스트 (선택사항, 없으면 폴더명 사용)
         """
         self.server_paths = server_paths
         self.notification_room_name = notification_room_name
@@ -21,6 +22,19 @@ class FeatherLogMonitor:
         self.monitor_thread = None
         self.last_positions = {}
         self.start_time = None  # 모니터링 시작 시간
+        
+        # 서버 경로와 이름 매핑
+        self.server_name_map = {}
+        if server_names and len(server_names) == len(server_paths):
+            for path, name in zip(server_paths, server_names):
+                self.server_name_map[path] = name
+        else:
+            # 서버 이름이 없거나 개수가 맞지 않으면 폴더명 사용
+            for path in server_paths:
+                self.server_name_map[path] = Path(path).name
+        
+        # 활성 서버 목록 (서버 종료 시 제거됨)
+        self.active_servers = set(server_paths)
         
         # 접속 감지 패턴들
         self.join_patterns = [
@@ -42,6 +56,21 @@ class FeatherLogMonitor:
             r'\[.*?\] \[Server thread/INFO\]: (\w+) lost connection'
         ]
         
+        # 서버 종료 감지 패턴들
+        self.server_stop_patterns = [
+            r'\[.*?\] \[Server thread/INFO\]: Stopping the server',
+            r'\[.*?\] \[Server thread/INFO\]: Goodbye',
+            r'\[.*?\] \[Server thread/INFO\]: ThreadedAnvilChunkStorage: All dimensions are saved'
+        ]
+        
+        # 서버 크래시 감지 패턴들
+        self.server_crash_patterns = [
+            r'java\.lang\.RuntimeException: Server crash!',
+            r'Server crash!',
+            r'\[.*?\] \[Server thread/ERROR\]: This crash report has been saved to',
+            r'\[.*?\] \[Server thread/ERROR\]: Encountered an unexpected exception'
+        ]
+        
         Helper.CustomPrint(f"🔍 Feather 로그 모니터링 초기화 완료")
         Helper.CustomPrint(f"📁 모니터링 서버: {len(server_paths)}개")
         Helper.CustomPrint(f"💬 알림 방: {notification_room_name}")
@@ -54,6 +83,10 @@ class FeatherLogMonitor:
         
         self.monitoring = True
         self.start_time = datetime.now()  # 모니터링 시작 시간 기록
+        
+        # 활성 서버 목록 초기화 (모든 서버가 다시 활성 상태로)
+        self.active_servers = set(self.server_paths)
+        
         self.monitor_thread = threading.Thread(target=self._monitor_loop, daemon=True)
         self.monitor_thread.start()
         Helper.CustomPrint("✅ Feather 로그 모니터링 시작")
@@ -69,8 +102,18 @@ class FeatherLogMonitor:
         """모니터링 메인 루프"""
         while self.monitoring:
             try:
-                for server_path in self.server_paths:
+                # 활성 서버만 체크
+                active_servers_copy = self.active_servers.copy()  # 반복 중 수정 방지
+                for server_path in active_servers_copy:
                     self._check_server_log(server_path)
+                
+                # 모든 서버가 종료되었으면 모니터링 중지
+                if not self.active_servers:
+                    Helper.CustomPrint("🔴 모든 서버가 종료되어 모니터링을 중지합니다.")
+                    self._send_kakao_message("🔴 모든 서버가 종료되어 로그 모니터링이 자동 중지되었습니다.")
+                    self.monitoring = False
+                    break
+                
                 time.sleep(1)  # 1초마다 체크
             except Exception as e:
                 Helper.CustomPrint(f"❌ 로그 모니터링 오류: {str(e)}")
@@ -78,6 +121,10 @@ class FeatherLogMonitor:
     
     def _check_server_log(self, server_path):
         """개별 서버 로그 체크"""
+        # 비활성 서버는 체크하지 않음
+        if server_path not in self.active_servers:
+            return
+            
         log_file = Path(server_path) / "logs" / "latest.log"
         
         if not log_file.exists():
@@ -120,8 +167,8 @@ class FeatherLogMonitor:
             match = re.search(pattern, line)
             if match:
                 player_name = match.group(1)
-                server_name = Path(server_path).name
-                message = f"[{player_name}]님이 로그인하셨습니다."
+                server_name = self.server_name_map[server_path]
+                message = f"🎮 [{server_name}] {player_name}님이 로그인하셨습니다."
                 
                 Helper.CustomPrint(f"🎮 {player_name}님이 {server_name} 서버에 접속했습니다!")
                 self._send_kakao_message(message)
@@ -132,11 +179,57 @@ class FeatherLogMonitor:
             match = re.search(pattern, line)
             if match:
                 player_name = match.group(1)
-                server_name = Path(server_path).name
-                message = f"[{player_name}]님이 로그아웃하셨습니다."
+                server_name = self.server_name_map[server_path]
+                message = f"🚪 [{server_name}] {player_name}님이 로그아웃하셨습니다."
                 
                 Helper.CustomPrint(f"🚪 {player_name}님이 {server_name} 서버에서 퇴장했습니다.")
                 self._send_kakao_message(message)
+                return
+        
+        # 서버 종료 감지
+        for pattern in self.server_stop_patterns:
+            if re.search(pattern, line):
+                server_name = self.server_name_map[server_path]
+                message = f"🔴 [{server_name}] 서버가 종료되었습니다."
+                
+                Helper.CustomPrint(f"🔴 {server_name} 서버가 종료되었습니다!")
+                self._send_kakao_message(message)
+                
+                # 해당 서버를 활성 목록에서 제거
+                if server_path in self.active_servers:
+                    self.active_servers.remove(server_path)
+                    Helper.CustomPrint(f"📤 {server_name} 서버 모니터링을 중지합니다.")
+                    
+                    # 남은 활성 서버 개수 확인
+                    if self.active_servers:
+                        remaining_servers = [self.server_name_map[path] for path in self.active_servers]
+                        Helper.CustomPrint(f"📋 남은 활성 서버: {', '.join(remaining_servers)}")
+                    else:
+                        Helper.CustomPrint("📋 모든 서버가 종료되었습니다.")
+                
+                return
+        
+        # 서버 크래시 감지
+        for pattern in self.server_crash_patterns:
+            if re.search(pattern, line):
+                server_name = self.server_name_map[server_path]
+                message = f"💥 [{server_name}] 서버에서 크래시가 발생했습니다!"
+                
+                Helper.CustomPrint(f"💥 {server_name} 서버에서 크래시가 발생했습니다!")
+                self._send_kakao_message(message)
+                
+                # 해당 서버를 활성 목록에서 제거 (크래시도 서버 종료)
+                if server_path in self.active_servers:
+                    self.active_servers.remove(server_path)
+                    Helper.CustomPrint(f"📤 {server_name} 서버 모니터링을 중지합니다. (크래시)")
+                    
+                    # 남은 활성 서버 개수 확인
+                    if self.active_servers:
+                        remaining_servers = [self.server_name_map[path] for path in self.active_servers]
+                        Helper.CustomPrint(f"📋 남은 활성 서버: {', '.join(remaining_servers)}")
+                    else:
+                        Helper.CustomPrint("📋 모든 서버가 종료되었습니다.")
+                
                 return
     
     def _is_log_after_start_time(self, log_line):
@@ -180,14 +273,14 @@ def set_global_chat_list(chat_list):
     global global_chat_list
     global_chat_list = chat_list
 
-def start_feather_monitoring(server_paths, notification_room_name):
+def start_feather_monitoring(server_paths, notification_room_name, server_names=None):
     """Feather 로그 모니터링 시작"""
     global feather_monitor
     
     if feather_monitor:
         feather_monitor.stop_monitoring()
     
-    feather_monitor = FeatherLogMonitor(server_paths, notification_room_name)
+    feather_monitor = FeatherLogMonitor(server_paths, notification_room_name, server_names)
     feather_monitor.start_monitoring()
     return feather_monitor
 
@@ -204,19 +297,29 @@ def start_feather_monitoring_from_config():
         
         notification_room = dataManager.DefaultSettingConfig.get('FeatherMonitor', 'notification_room', fallback='이더')
         server_paths_str = dataManager.DefaultSettingConfig.get('FeatherMonitor', 'server_paths', fallback='')
+        server_names_str = dataManager.DefaultSettingConfig.get('FeatherMonitor', 'server_names', fallback='')
         
         if not server_paths_str:
             Helper.CustomPrint("⚠️ Feather 서버 경로가 설정되지 않았습니다.")
             return None
         
         server_paths = [path.strip() for path in server_paths_str.split(',')]
+        server_names = None
+        
+        # 서버 이름이 설정되어 있으면 사용
+        if server_names_str:
+            server_names = [name.strip() for name in server_names_str.split(',')]
+            if len(server_names) != len(server_paths):
+                Helper.CustomPrint("⚠️ 서버 경로와 서버 이름의 개수가 맞지 않습니다. 폴더명을 사용합니다.")
+                server_names = None
         
         Helper.CustomPrint(f"🎮 Feather 모니터링 설정:")
         Helper.CustomPrint(f"   📁 서버 경로: {len(server_paths)}개")
+        Helper.CustomPrint(f"   🏷️ 서버 이름: {'사용자 정의' if server_names else '폴더명 사용'}")
         Helper.CustomPrint(f"   💬 알림 방: {notification_room}")
         
         # 모니터링 시작
-        monitor = start_feather_monitoring(server_paths, notification_room)
+        monitor = start_feather_monitoring(server_paths, notification_room, server_names)
         return monitor
         
     except Exception as e:
@@ -260,8 +363,23 @@ def check_feather_monitoring_status(chatroom_name, chat_command, message):
     global feather_monitor
     
     if feather_monitor and feather_monitor.monitoring:
-        server_count = len(feather_monitor.server_paths)
+        total_server_count = len(feather_monitor.server_paths)
+        active_server_count = len(feather_monitor.active_servers)
         notification_room = feather_monitor.notification_room_name
-        return f"🎮 Feather 로그 모니터링 상태: 실행 중\n📁 모니터링 서버: {server_count}개\n💬 알림 방: {notification_room}", "text"
+        
+        # 활성 서버 이름 목록
+        active_server_names = [feather_monitor.server_name_map[path] for path in feather_monitor.active_servers]
+        
+        status_msg = f"🎮 Feather 로그 모니터링 상태: 실행 중\n"
+        status_msg += f"📁 전체 서버: {total_server_count}개\n"
+        status_msg += f"🟢 활성 서버: {active_server_count}개\n"
+        if active_server_names:
+            status_msg += f"📋 활성 서버 목록: {', '.join(active_server_names)}\n"
+        status_msg += f"💬 알림 방: {notification_room}\n"
+        status_msg += f"📋 감지 이벤트:\n"
+        status_msg += f"  🟢 플레이어 접속/퇴장\n"
+        status_msg += f"  🔴 서버 종료 (자동 모니터링 중지)\n"
+        status_msg += f"  💥 서버 크래시 (자동 모니터링 중지)"
+        return status_msg, "text"
     else:
         return "⏹️ Feather 로그 모니터링 상태: 중지됨", "text" 
