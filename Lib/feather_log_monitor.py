@@ -47,13 +47,35 @@ class FeatherLogMonitor:
         
         # 퇴장 감지 패턴들
         self.leave_patterns = [
+            # 정상 퇴장
+            # 정상 퇴장
             r'\[.*?\] \[Server thread/INFO\]: (\w+) left the game',
-            r'\[.*?\] \[Server thread/INFO\]: (\w+) disconnected',
-            r'\[.*?\] \[Server thread/INFO\]: (\w+) 퇴장',
             r'\[.*?\] \[Server thread/INFO\]: (\w+) logged out',
             r'\[.*?\] \[Server thread/INFO\]: (\w+) has left the server',
-            r'\[.*?\] \[Server thread/INFO\]: UUID of player (\w+) is',
-            r'\[.*?\] \[Server thread/INFO\]: (\w+) lost connection'
+            r'\[.*?\] \[Server thread/INFO\]: (\w+) 퇴장',
+            
+            # 연결 문제 (더 정확한 패턴)
+            r'\[.*?\] \[Server thread/INFO\]: (\w+) disconnected',
+            r'\[.*?\] \[Server thread/INFO\]: (\w+) lost connection.*?',
+            r'\[.*?\] \[Server thread/INFO\]: (\w+).*?Read timed out',
+            r'\[.*?\] \[Server thread/INFO\]: (\w+).*?timed out',
+            r'\[.*?\] \[Server thread/INFO\]: (\w+).*?Connection timeout',
+            r'\[.*?\] \[Server thread/INFO\]: (\w+).*?Connection reset',
+            r'\[.*?\] \[Server thread/INFO\]: (\w+).*?Connection reset by peer',
+            r'\[.*?\] \[Server thread/INFO\]: (\w+).*?Broken pipe',
+            
+            # 킥 관련
+            r'\[.*?\] \[Server thread/INFO\]: (\w+) was kicked',
+            r'\[.*?\] \[Server thread/INFO\]: (\w+) has been kicked',
+            r'\[.*?\] \[Server thread/INFO\]: Kicked (\w+)',
+            
+            # 서버 측 이슈
+            r'\[.*?\] \[Server thread/INFO\]: (\w+).*?Internal Exception',
+            r'\[.*?\] \[Server thread/INFO\]: (\w+).*?IOException',
+            r'\[.*?\] \[Server thread/ERROR\]: (\w+).*?Exception',
+            
+            # UUID 관련 (UUID 메시지도 퇴장의 일종) - 다양한 스레드에서 발생 가능
+            r'\[.*?\] \[.*?/INFO\]: UUID of player (\w+) is'
         ]
         
         # 서버 종료 감지 패턴들
