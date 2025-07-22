@@ -180,12 +180,15 @@ class FeatherLogMonitor:
         if not line:
             return
         
+        Helper.CustomPrint(f"🔍 [DEBUG] 로그 라인 처리 중: {line}")
+        
         # 로그 라인의 타임스탬프 추출 및 모니터링 시작 시간과 비교
         if not self._is_log_after_start_time(line):
+            Helper.CustomPrint(f"🔍 [DEBUG] 시간 필터로 인해 무시됨: {line}")
             return  # 모니터링 시작 이전의 로그는 무시
         
         # 접속 감지
-        for pattern in self.join_patterns:
+        for i, pattern in enumerate(self.join_patterns):
             match = re.search(pattern, line)
             if match:
                 player_name = match.group(1)
@@ -193,6 +196,9 @@ class FeatherLogMonitor:
                 message = f"🎮 [{server_name}] {player_name}님이 로그인하셨습니다."
                 
                 Helper.CustomPrint(f"🎮 {player_name}님이 {server_name} 서버에 접속했습니다!")
+                Helper.CustomPrint(f"🔍 [DEBUG] 접속 패턴 매치됨 (패턴 {i}): {pattern}")
+                Helper.CustomPrint(f"🔍 [DEBUG] 전송할 메시지: {message}")
+                
                 self._send_kakao_message(message)
                 return
         
@@ -256,35 +262,55 @@ class FeatherLogMonitor:
     
     def _is_log_after_start_time(self, log_line):
         """로그 라인이 모니터링 시작 시간 이후인지 확인"""
-        if not self.start_time:
-            return True
+        # 임시로 모든 로그를 처리하도록 설정 (디버깅용)
+        Helper.CustomPrint(f"🔍 [DEBUG] 로그 라인 타임스탬프 체크: {log_line[:50]}...")
+        return True
         
-        # 로그 라인에서 타임스탬프 추출 (예: [12:34:56])
-        timestamp_match = re.search(r'\[(\d{2}:\d{2}:\d{2})\]', log_line)
-        if not timestamp_match:
-            return True  # 타임스탬프가 없으면 처리
-        
-        try:
-            log_time_str = timestamp_match.group(1)
-            log_time = datetime.strptime(log_time_str, "%H:%M:%S").time()
-            start_time = self.start_time.time()
-            
-            # 같은 날의 시간 비교
-            return log_time >= start_time
-        except:
-            return True  # 파싱 오류 시 처리
+        # 원래 로직 (주석 처리)
+        # if not self.start_time:
+        #     return True
+        # 
+        # # 로그 라인에서 타임스탬프 추출 (예: [12:34:56])
+        # timestamp_match = re.search(r'\[(\d{2}:\d{2}:\d{2})\]', log_line)
+        # if not timestamp_match:
+        #     return True  # 타임스탬프가 없으면 처리
+        # 
+        # try:
+        #     log_time_str = timestamp_match.group(1)
+        #     log_time = datetime.strptime(log_time_str, "%H:%M:%S").time()
+        #     start_time = self.start_time.time()
+        #     
+        #     # 같은 날의 시간 비교
+        #     return log_time >= start_time
+        # except:
+        #     return True  # 파싱 오류 시 처리
     def _send_kakao_message(self, message):
         """카카오톡 메시지를 큐에 추가"""
+        Helper.CustomPrint(f"🔍 [DEBUG] _send_kakao_message 호출됨: {message}")
+        
         if not global_chat_list:
             Helper.CustomPrint(f"⏳ chatList가 아직 초기화되지 않았습니다.")
             return
-            
-        for chat in global_chat_list:
+        
+        Helper.CustomPrint(f"🔍 [DEBUG] global_chat_list 크기: {len(global_chat_list)}")
+        Helper.CustomPrint(f"🔍 [DEBUG] 알림 방 이름: {self.notification_room_name}")
+        
+        for i, chat in enumerate(global_chat_list):
+            Helper.CustomPrint(f"🔍 [DEBUG] chat[{i}] 방 이름: {chat.chatroom_name}")
             if chat.chatroom_name == self.notification_room_name:
-                chat.add_message_to_queue(message, "text")
-                return
+                Helper.CustomPrint(f"🔍 [DEBUG] 매칭된 방 찾음! 메시지 큐에 추가 시도...")
+                try:
+                    chat.add_message_to_queue(message, "text")
+                    Helper.CustomPrint(f"✅ [DEBUG] 메시지 큐 추가 성공")
+                    return
+                except Exception as e:
+                    Helper.CustomPrint(f"❌ [DEBUG] 메시지 큐 추가 실패: {str(e)}")
+                    import traceback
+                    Helper.CustomPrint(f"❌ [DEBUG] 스택 트레이스: {traceback.format_exc()}")
+                    return
         
         Helper.CustomPrint(f"⚠️ 알림 방을 찾을 수 없습니다: {self.notification_room_name}")
+        Helper.CustomPrint(f"🔍 [DEBUG] 사용 가능한 방 목록: {[chat.chatroom_name for chat in global_chat_list]}")
 
 # 전역 변수들
 feather_monitor = None
