@@ -1,7 +1,7 @@
 import time
 from Lib import dataManager, Helper
 from Lib import chat_process, json_data_manager
-from Lib import feather_log_monitor
+from Lib import log_monitor
 import sys
 import os
 import subprocess
@@ -58,6 +58,10 @@ def main():
     # GitHub 업데이트 확인
     check_and_update()
     
+    # 카카오톡 자동 실행 안내
+    Helper.CustomPrint("🚀 KakaoBot 2025 시작")
+    Helper.CustomPrint("📱 카카오톡이 실행되지 않은 경우 자동으로 실행됩니다")
+    
     # ChatProcess 인스턴스들을 저장할 리스트 (전역 변수로 설정)
     global chatList
     chatList = []
@@ -67,13 +71,14 @@ def main():
         chatList.append(chat_process.ChatProcess(name))
     
     # Feather 로그 모니터링을 위한 chatList 설정
-    feather_log_monitor.set_global_chat_list(chatList)
+    log_monitor.set_global_chat_list(chatList)
     
     # DefaultSetting.ini의 enabled 값이 true면 자동으로 모니터링 시작
-    feather_monitor = feather_log_monitor.start_feather_monitoring_from_config()
+    feather_monitor = log_monitor.start_feather_monitoring_from_config()
 
     # 무한 루프: 주기적으로 각 ChatProcess의 run() 메서드를 호출
     while True:
+        
         for chat in chatList:
             chat.run()
         time.sleep(0.1)  # 0.5초에서 0.1초로 감소

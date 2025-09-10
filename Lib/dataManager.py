@@ -46,13 +46,31 @@ BOT_NAME = DefaultSettingConfig.get('BotName', 'name')
 
 # ─── [GPT Info] GPT 관련 정보들들 Load ───────────────────────
 GPT_MAX_TOKEN = DefaultSettingConfig.get('GPT', 'maxToken')
+GPT_DEFAULT_MODEL = DefaultSettingConfig.get('GPT', 'defaultModel')
+GPT_ANSWER_LENGTH_LIMIT = DefaultSettingConfig.get('GPT', 'answerLengthLimit')
 # ─── [GPT Info] GPT 관련 정보들들 Load ────────────────────────
 
 # ─── [GPT_MODEL] GPT 모델 리스트 Load ───────────────────────
 if 'GPT_MODEL' in DefaultSettingConfig:
-    GPT_MODEL_LIST = [model for model, _ in DefaultSettingConfig.items('GPT_MODEL')]
+    # 모델명과 비용 정보를 분리하여 저장
+    GPT_MODEL_LIST = []
+    GPT_MODEL_COSTS = {}
+    
+    for model_with_cost, _ in DefaultSettingConfig.items('GPT_MODEL'):
+        if '/' in model_with_cost:
+            model_name, cost_percent = model_with_cost.split('/', 1)
+            model_name = model_name.strip()
+            cost_percent = cost_percent.strip()
+            GPT_MODEL_LIST.append(model_name)
+            GPT_MODEL_COSTS[model_name] = cost_percent
+        else:
+            # 비용 정보가 없는 경우 기본값 100으로 설정
+            model_name = model_with_cost.strip()
+            GPT_MODEL_LIST.append(model_name)
+            GPT_MODEL_COSTS[model_name] = "100"
 else:
     GPT_MODEL_LIST = ["gpt-3.5-turbo", "gpt-4o", "gpt-4o-mini"]
+    GPT_MODEL_COSTS = {"gpt-3.5-turbo": "100", "gpt-4o": "120", "gpt-4o-mini": "80"}
 # ─── [GPT_MODEL] GPT 모델 리스트 Load ───────────────────────
 
 
@@ -84,7 +102,7 @@ def GetData(opentalk_name, chat_command, message):
 # ─── 커맨드 맵 정의하기 위해서 선언 ─────────────────────────────────────────────────────
 
 from Lib import youtube, convert_naver_map, every_mention, json_data_manager
-from Lib import gpt_api, insta, feather_log_monitor
+from Lib import gpt_api, insta, log_monitor
 # from Lib import fund_holdings_service
 
 # ─── 커맨드 맵 정의 ─────────────────────────────────────────────────────
@@ -100,9 +118,10 @@ chat_command_Map = [
     ['#모델변경', "#모델변경 (모델명) \n  현재 채팅방에서 사용 가능한 모델 중 하나로 변경이 가능합니다.",  gpt_api.update_chatroom_gptmodele],
     ['#모델확인', "#모델확인 \n  현재 채팅방에서 사용중인 모델을 검색합니다.",  gpt_api.chatroom_gpt_model],
     ['#gpt', "#gpt (내용) \n gpt 에 검색하여 나온 질의를 응답해줍니다. 비용문제로 안될 수 있습니다.", gpt_api.getData],
-    ['#마크노티시작', "#마크노티시작 \n Feather 마인크래프트 서버 로그 모니터링을 시작합니다. (특정 채팅방에서만 가능합니다)", feather_log_monitor.start_feather_monitoring_command],
-    ['#마크노티종료', "#마크노티종료 \n Feather 마인크래프트 서버 로그 모니터링을 중지합니다. (특정 채팅방에서만 가능합니다)", feather_log_monitor.stop_feather_monitoring_command],
-    ['#마크노티상태', "#마크노티상태 \n Feather 마인크래프트 서버 로그 모니터링 상태를 확인합니다.", feather_log_monitor.check_feather_monitoring_status],
+    ['#사용량확인', "#사용량확인 \n OpenAI API 사용량 현황을 확인합니다.", gpt_api.api_usage_status],
+    ['#로그모니터시작', "#로그모니터시작 \n 서버 로그 모니터링을 시작합니다. (특정 채팅방에서만 가능합니다)", log_monitor.start_log_monitoring_command],
+    ['#로그모니터종료', "#로그모니터종료 \n 서버 로그 모니터링을 중지합니다. (특정 채팅방에서만 가능합니다)", log_monitor.stop_log_monitoring_command],
+    ['#로그모니터상태', "#로그모니터상태 \n 서버 로그 모니터링 상태를 확인합니다.", log_monitor.check_log_monitoring_status],
     ['https://www.instagram.com/', "인스타 한장 요약 \n 인스타 링크를 올리면 한장 요약을 해주는 기능입니다", insta.GetData],
    # ['#펀드', "#펀드보유 (종목명/티커) (N일)\n미국 주식의 상위 펀드 보유 현황과 최근 N일 내 변동을 보여줍니다.", fund_holdings_service.GetFundHoldings],
 ]
