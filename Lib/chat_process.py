@@ -37,6 +37,10 @@ class ChatProcess:
         self.IsLoad = 0
         self.BotName = dataManager.BOT_NAME
         self.message_queue = queue.Queue()  # 메시지 큐 추가
+        self.chatroomHwnd = 0  # 채팅방 창 핸들 초기화
+        self.chatroomHwnd = 0  # 채팅방 창 핸들 초기화
+        self.hwndListControl = 0  # 리스트 컨트롤 핸들 초기화
+        self.hwndkakao_edit3 = 0  # 검색 Edit 컨트롤 핸들 초기화
         self.init()
 
     def init(self):
