@@ -1,3 +1,21 @@
-/api_key.json
-/chatrooms.json
+# IDE
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# 민감 정보 / 인증
+config/api_key.json
+config/youtube_client_secrets.json
+config/chatrooms.json
+config/api_usage.json
+token.pickle
 /kakao_token.json
+
+# 로그 / 런타임 데이터
+saved/
+
+# 배포
+dist/
