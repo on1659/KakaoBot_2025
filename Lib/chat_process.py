@@ -31,13 +31,17 @@ MakeLong = win32api.MAKELONG
 w = win32con
 
 class ChatProcess:
+    # 카카오톡 실행 상태 캐시 (클래스 변수 - 모든 인스턴스 공유)
+    _kakao_running_cache = False
+    _kakao_check_time = 0
+    _KAKAO_CHECK_INTERVAL = 10  # 10초마다만 프로세스 체크
+
     def __init__(self, chatroom_name):
         self.chatroom_name = chatroom_name
         self.last_index = 0
         self.IsLoad = 0
         self.BotName = dataManager.BOT_NAME
-        self.message_queue = queue.Queue()  # 메시지 큐 추가
-        self.chatroomHwnd = 0  # 채팅방 창 핸들 초기화
+        self.message_queue = queue.Queue()  # 메시지 큐
         self.chatroomHwnd = 0  # 채팅방 창 핸들 초기화
         self.hwndListControl = 0  # 리스트 컨트롤 핸들 초기화
         self.hwndkakao_edit3 = 0  # 검색 Edit 컨트롤 핸들 초기화
@@ -46,6 +50,7 @@ class ChatProcess:
     def init(self):
         # Open
         self.init_open_romm(self.chatroom_name)
+
 
         # 핸들을 찾지 못한 경우 초기화 실패로 처리
         if self.chatroomHwnd == 0:
@@ -108,48 +113,38 @@ class ChatProcess:
             # 창이 최소화되어 있다면 복원
             if win32gui.IsIconic(hwndMain):
                 win32gui.ShowWindow(hwndMain, win32con.SW_RESTORE)
-                time.sleep(0.2)  # 창 복원 대기
-            
-            # 현재 포커스된 창이 카카오톡 창인 경우, 포커스 해제
-            if "카카오톡" in current_focus_title:
-                # 포커스 해제를 위해 데스크톱 창으로 포커스 이동
-                desktop_hwnd = win32gui.GetDesktopWindow()
-                try:
-                    win32gui.SetForegroundWindow(desktop_hwnd)
-                    time.sleep(0.2)  # 포커스 해제 대기
-                except:
-                    pass  # 포커스 해제 실패는 무시
-            
+                time.sleep(0.05)
+
             # 창을 전면으로 가져오기 (여러 방법 시도)
             success = False
-            
+
             # 방법 1: 일반적인 SetForegroundWindow
             try:
                 win32gui.SetForegroundWindow(hwndMain)
-                time.sleep(0.3)  # 포커스 변경 대기
+                time.sleep(0.05)
                 if win32gui.GetForegroundWindow() == hwndMain:
                     success = True
             except Exception as e:
                 self.CustomPrint(f"⚠️ SetForegroundWindow 실패: {e}")
-            
+
             # 방법 2: ShowWindow + SetForegroundWindow 조합
             if not success:
                 try:
                     win32gui.ShowWindow(hwndMain, win32con.SW_SHOW)
                     win32gui.ShowWindow(hwndMain, win32con.SW_RESTORE)
-                    time.sleep(0.2)
+                    time.sleep(0.05)
                     win32gui.SetForegroundWindow(hwndMain)
-                    time.sleep(0.3)
+                    time.sleep(0.05)
                     if win32gui.GetForegroundWindow() == hwndMain:
                         success = True
                 except Exception as e:
                     self.CustomPrint(f"⚠️ ShowWindow + SetForegroundWindow 실패: {e}")
-            
+
             # 방법 3: BringWindowToTop 사용
             if not success:
                 try:
                     win32gui.BringWindowToTop(hwndMain)
-                    time.sleep(0.3)
+                    time.sleep(0.05)
                     if win32gui.GetForegroundWindow() == hwndMain:
                         success = True
                 except Exception as e:
@@ -166,15 +161,23 @@ class ChatProcess:
             return False
 
     def is_kakao_running(self):
-        """카카오톡이 실행 중인지 확인"""
+        """카카오톡이 실행 중인지 확인 (캐시 사용으로 성능 최적화)"""
+        now = time.time()
+        # 캐시가 유효하면 캐시된 결과 반환
+        if now - ChatProcess._kakao_check_time < ChatProcess._KAKAO_CHECK_INTERVAL:
+            return ChatProcess._kakao_running_cache
+
         try:
+            ChatProcess._kakao_check_time = now
             for proc in psutil.process_iter(['pid', 'name']):
                 if proc.info['name'] and 'kakao' in proc.info['name'].lower():
+                    ChatProcess._kakao_running_cache = True
                     return True
+            ChatProcess._kakao_running_cache = False
             return False
         except Exception as e:
             self.CustomPrint(f"❌ 프로세스 확인 중 오류: {e}")
-            return False
+            return ChatProcess._kakao_running_cache  # 오류 시 캐시 반환
 
     def launch_kakao(self):
         """카카오톡을 실행합니다"""
@@ -253,8 +256,15 @@ class ChatProcess:
             self.CustomPrint("❌ 초기화 실패 - 이번 사이클 건너뛰기")
             return
 
-        # 채팅방 열기 및 내용 복사
-        self.open_room(self.chatroom_name)
+        # 창 핸들이 유효하지 않으면 방 다시 열기 (유효하면 스킵)
+        if not self.validate_window_handle(self.chatroomHwnd, self.chatroom_name):
+            self.open_room(self.chatroom_name)
+            # 방 열기 후 핸들 재검색
+            self.chatroomHwnd = win32gui.FindWindow(None, self.chatroom_name)
+            if self.chatroomHwnd != 0:
+                self.hwndListControl = win32gui.FindWindowEx(self.chatroomHwnd, None, "EVA_VH_ListControl_Dblclk", None)
+
+        # 채팅 내용 복사
         CopyText = self.copy_cheat(self.chatroom_name, self.chatroomHwnd, self.hwndListControl)
         
         # 채팅 내용 복사 실패 시 처리
@@ -265,7 +275,6 @@ class ChatProcess:
         
         df = self.parse_chat_log(CopyText)
         result = self.check_new_commands(df)
-        pyperclip.copy("")
 
         if len(result) > 0:
             for cmd_key, func_ptr in result:
@@ -300,8 +309,8 @@ class ChatProcess:
                 self.message_queue.task_done()
                 processed_count += 1
                 
-                # 메시지 간 충분한 간격
-                time.sleep(0.5)
+                # 메시지 간 간격
+                time.sleep(0.15)
                 
             except queue.Empty:
                 break
@@ -329,7 +338,7 @@ class ChatProcess:
             # 카카오톡 창이 최소화되어 있다면 복원
             if win32gui.IsIconic(hWndKaKao):
                 win32gui.ShowWindow(hWndKaKao, win32con.SW_RESTORE)
-                time.sleep(0.5)
+                time.sleep(0.2)
             
             # 채팅방 검색 Edit 컨트롤 찾기
             hwndkakao_edit1 = win32gui.FindWindowEx(hWndKaKao, None, "EVA_ChildWindow", None)
@@ -354,9 +363,9 @@ class ChatProcess:
                 
                 # 검색창에 채팅방 이름 입력
                 SendMessage(self.hwndkakao_edit3, win32con.WM_SETTEXT, 0, chatroom_name)
-                time.sleep(1)
+                time.sleep(0.3)
                 self.SendReturn(self.hwndkakao_edit3)
-                time.sleep(1)
+                time.sleep(0.5)
                 
                 # 다시 채팅방 창 핸들 찾기
                 self.chatroomHwnd = win32gui.FindWindow(None, chatroom_name)
@@ -431,9 +440,9 @@ class ChatProcess:
 
         # # Edit에 검색 _ 입력되어있는 텍스트가 있어도 덮어쓰기됨
         SendMessage(self.hwndkakao_edit3, win32con.WM_SETTEXT, 0, chatroom_name)
-        time.sleep(0.5)  # 안정성 위해 필요
+        time.sleep(0.2)
         pyautogui.press("enter")
-        time.sleep(0.5)
+        time.sleep(0.3)
 
     def send(self, text, type="text"):
         """
@@ -448,51 +457,31 @@ class ChatProcess:
             self.send_image(self.chatroomHwnd, self.chatroom_name)
 
     def sendtext(self, cheat_room_name, hwndMain, text):
-        Helper.CustomPrint(f"🔧 [{cheat_room_name}] 메시지 전송 시작: '{text[:30]}...'")
-        
         try:
-            # Bring KakaoTalk chat window to the front
-            Helper.CustomPrint(f"🔧 [{cheat_room_name}] 1단계: 창 포커스 시도")
             focus_success = self.SetForceGroundWindow(hwndMain)
             if not focus_success:
                 Helper.CustomPrint(f"⚠️ [{cheat_room_name}] 1단계: 창 포커스 실패 - 계속 진행")
-            else:
-                Helper.CustomPrint(f"✅ [{cheat_room_name}] 1단계: 창 포커스 완료")
-            time.sleep(0.3)
+            time.sleep(0.05)
 
-            # Simulate pressing Tab key 3 times (to navigate to input box)
-            Helper.CustomPrint(f"🔧 [{cheat_room_name}] 2단계: Tab 키 전송")
+            # Tab 키로 입력창 포커스
             self.SendTab(1)
-            Helper.CustomPrint(f"✅ [{cheat_room_name}] 2단계: Tab 키 완료")
 
-            # Copy text to clipboard
-            Helper.CustomPrint(f"🔧 [{cheat_room_name}] 3단계: 클립보드 복사")
+            # 클립보드 복사
             pyperclip.copy(text)
-            time.sleep(0.2)
-            
-            # 클립보드 복사 확인
-            clipboard_content = pyperclip.paste()
-            if clipboard_content == text:
-                Helper.CustomPrint(f"✅ [{cheat_room_name}] 3단계: 클립보드 복사 성공")
-            else:
-                Helper.CustomPrint(f"❌ [{cheat_room_name}] 3단계: 클립보드 복사 실패! 예상: '{text}', 실제: '{clipboard_content}'")
+            time.sleep(0.05)
 
-            # Simulate Ctrl+V (Paste)
-            Helper.CustomPrint(f"🔧 [{cheat_room_name}] 4단계: Ctrl+V 붙여넣기")
+            # Ctrl+V (붙여넣기)
             win32api.keybd_event(win32con.VK_CONTROL, 0, 0, 0)
             win32api.keybd_event(0x56, 0, 0, 0)  # V key
             win32api.keybd_event(0x56, 0, win32con.KEYEVENTF_KEYUP, 0)
             win32api.keybd_event(win32con.VK_CONTROL, 0, win32con.KEYEVENTF_KEYUP, 0)
-            time.sleep(0.2)
-            Helper.CustomPrint(f"✅ [{cheat_room_name}] 4단계: Ctrl+V 완료")
+            time.sleep(0.05)
 
-            # Simulate Enter Key to Send Message
-            Helper.CustomPrint(f"🔧 [{cheat_room_name}] 5단계: Enter 키 전송")
+            # Enter 전송
             win32api.keybd_event(win32con.VK_RETURN, 0, 0, 0)
             win32api.keybd_event(win32con.VK_RETURN, 0, win32con.KEYEVENTF_KEYUP, 0)
-            Helper.CustomPrint(f"✅ [{cheat_room_name}] 5단계: Enter 키 완료")
-            
-            Helper.CustomPrint(f"🎯 [{cheat_room_name}] 메시지 전송 프로세스 완료!")
+
+            Helper.CustomPrint(f"✅ [{cheat_room_name}] 메시지 전송 완료: '{text[:30]}...'")
             
         except Exception as e:
             Helper.CustomPrint(f"❌ [{cheat_room_name}] 메시지 전송 중 오류: {str(e)}")
@@ -505,19 +494,19 @@ class ChatProcess:
         """
         # 카카오톡 창 포커스로 가져오기
         self.SetForceGroundWindow(hwndMain)
-        time.sleep(0.3)
+        time.sleep(0.05)
 
-        # 입력창으로 포커스를 이동 (필요시 Tab키 시뮬레이션)
+        # 입력창으로 포커스를 이동
         self.SendTab(1)
-        time.sleep(0.2)
+        time.sleep(0.05)
 
         # Ctrl+V (붙여넣기) 시뮬레이션
         win32api.keybd_event(win32con.VK_CONTROL, 0, 0, 0)
         win32api.keybd_event(0x56, 0, 0, 0)  # V 키 (0x56)
-        time.sleep(0.1)
+        time.sleep(0.02)
         win32api.keybd_event(0x56, 0, win32con.KEYEVENTF_KEYUP, 0)
         win32api.keybd_event(win32con.VK_CONTROL, 0, win32con.KEYEVENTF_KEYUP, 0)
-        time.sleep(0.2)
+        time.sleep(0.05)
 
         # 엔터키 시뮬레이션 (메시지 전송)
         win32api.keybd_event(win32con.VK_RETURN, 0, 0, 0)
@@ -527,9 +516,9 @@ class ChatProcess:
     def SendTab(self, n=1):
         for _ in range(n):
             ctypes.windll.user32.keybd_event(win32con.VK_TAB, 0, 0, 0)  # Key down
-            time.sleep(0.05)
+            time.sleep(0.01)
             ctypes.windll.user32.keybd_event(win32con.VK_TAB, 0, win32con.KEYEVENTF_KEYUP, 0)  # Key up
-            time.sleep(0.1)
+            time.sleep(0.02)
 
     def copy_cheat(self, chatroom_name, hwndMain, hwndListControl):
         """
@@ -538,7 +527,7 @@ class ChatProcess:
         예외 발생 시에는 빈 문자열을 반환하고, 에러를 로깅합니다.
         """
         max_retries = 3
-        retry_delay = 1.0  # seconds
+        retry_delay = 0.3  # seconds
         
         for attempt in range(max_retries):
             try:
@@ -560,12 +549,10 @@ class ChatProcess:
                             time.sleep(retry_delay)
                             continue
                     
-                    # SetForceGroundWindow 메서드 사용 (개선된 예외 처리 포함)
+                    # SetForceGroundWindow 메서드 사용
                     focus_success = self.SetForceGroundWindow(hwndMain)
-                    if not focus_success:
+                    if not focus_success and Helper.is_debug_mode():
                         Helper.CustomPrint(f"⚠️ [{chatroom_name}] 창 포커스 실패 - 계속 진행")
-                    else:
-                        Helper.CustomPrint(f"✅ [{chatroom_name}] 창 포커스 성공")
                         
                 except Exception as e:
                     Helper.CustomPrint(f"❌ [{chatroom_name}] 창 포커스 예외 발생: {e}")
@@ -577,7 +564,6 @@ class ChatProcess:
                     win32clipboard.OpenClipboard()
                     win32clipboard.EmptyClipboard()
                     win32clipboard.CloseClipboard()
-                    time.sleep(0.2)  # 클립보드 초기화 대기
                 except Exception as e:
                     Helper.CustomPrint(f"❌ [{chatroom_name}] 클립보드 초기화 실패: {e}")
                     time.sleep(retry_delay)
@@ -585,9 +571,9 @@ class ChatProcess:
 
                 # Ctrl+A, Ctrl+C 조합키로 전체 복사
                 self.PostKeyEx(hwndListControl, ord('A'), [w.VK_CONTROL], False)
-                time.sleep(0.5)
+                time.sleep(0.1)
                 self.PostKeyEx(hwndListControl, ord('C'), [w.VK_CONTROL], False)
-                time.sleep(0.5)  # 클립보드 복사 대기
+                time.sleep(0.15)  # 클립보드 복사 대기
 
                 try:
                     # 클립보드 내용 가져오기 시도
