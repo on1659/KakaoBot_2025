@@ -73,6 +73,15 @@ else:
     GPT_MODEL_COSTS = {"gpt-3.5-turbo": "100", "gpt-4o": "120", "gpt-4o-mini": "80"}
 # ─── [GPT_MODEL] GPT 모델 리스트 Load ───────────────────────
 
+# ─── [RADAR] 게임위키 API (#radar) ───────────────────────
+RADAR_BASE_URL = "https://awhirl-preimpressive-carina.ngrok-free.dev"
+RADAR_API_KEY_ENV = "GAME_WIKI_API_KEY"
+if 'RADAR' in DefaultSettingConfig:
+    _radar = DefaultSettingConfig['RADAR']
+    RADAR_BASE_URL = _radar.get('baseUrl', RADAR_BASE_URL).strip().rstrip('/')
+    RADAR_API_KEY_ENV = _radar.get('apiKeyEnv', RADAR_API_KEY_ENV).strip()
+# ─── [RADAR] ───────────────────────
+
 
 def format_available_commands(chat_command) -> str:
     """
@@ -102,7 +111,7 @@ def GetData(opentalk_name, chat_command, message):
 # ─── 커맨드 맵 정의하기 위해서 선언 ─────────────────────────────────────────────────────
 
 from Lib import youtube, convert_naver_map, every_mention, json_data_manager
-from Lib import gpt_api, insta, log_monitor
+from Lib import gpt_api, insta, log_monitor, youtube_summary, radar_api
 # from Lib import fund_holdings_service
 
 # ─── 커맨드 맵 정의 ─────────────────────────────────────────────────────
@@ -113,15 +122,18 @@ chat_command_Map = [
     ['#유툽', "#유툽 (검색) \n 유튜브 검색에서 첫번째 나온 영상을 보여줍니다.", youtube.GetData],
     ['[카카오맵]', "카카오맵->네이버지도 변환기능 \n 카카오맵url을 올리면 자동으로 네이버 주소로 변환해줍니다", convert_naver_map.GetData],
     ['#all', "#all \n모든 인원을 호출합니다. 단! #방인원 (숫자)로 현재 방인원에 정보를 저장해야합니다", every_mention.GetData],
-    ['#all', "#all \n모든 인원을 호출합니다. 단! #방인원 (숫자)로 현재 방인원에 정보를 저장해야합니다", every_mention.GetData],
     ['#방인원', "#방인원 (숫자) \n  #all을 사용하기 위한 기능으로, 현재 방인원을 직접 설정해주셔야합니다.",  json_data_manager.update_chatroom_membercount],
-    ['#모델변경', "#모델변경 (모델명) \n  현재 채팅방에서 사용 가능한 모델 중 하나로 변경이 가능합니다.",  gpt_api.update_chatroom_gptmodele],
-    ['#모델확인', "#모델확인 \n  현재 채팅방에서 사용중인 모델을 검색합니다.",  gpt_api.chatroom_gpt_model],
+    ['#model', "#모델변경 (모델명) \n  현재 채팅방에서 사용 가능한 모델 중 하나로 변경이 가능합니다.",  gpt_api.update_chatroom_gptmodele],
+    ['#modelcheck', "#모델확인 \n  현재 채팅방에서 사용중인 모델을 검색합니다.",  gpt_api.chatroom_gpt_model],
     ['#gpt', "#gpt (내용) \n gpt 에 검색하여 나온 질의를 응답해줍니다. 비용문제로 안될 수 있습니다.", gpt_api.getData],
     ['#사용량확인', "#사용량확인 \n OpenAI API 사용량 현황을 확인합니다.", gpt_api.api_usage_status],
-    ['#로그모니터시작', "#로그모니터시작 \n 서버 로그 모니터링을 시작합니다. (특정 채팅방에서만 가능합니다)", log_monitor.start_log_monitoring_command],
-    ['#로그모니터종료', "#로그모니터종료 \n 서버 로그 모니터링을 중지합니다. (특정 채팅방에서만 가능합니다)", log_monitor.stop_log_monitoring_command],
-    ['#로그모니터상태', "#로그모니터상태 \n 서버 로그 모니터링 상태를 확인합니다.", log_monitor.check_log_monitoring_status],
+    ['#radar', "#radar (게임) (질문) 또는 (질문)\n 게임위키 AI (마인크래프트/팰월드/오버워치) 질의", radar_api.getData],
+    #['#로그모니터시작', "#로그모니터시작 \n 서버 로그 모니터링을 시작합니다. (특정 채팅방에서만 가능합니다)", log_monitor.start_log_monitoring_command],
+    #['#로그모니터종료', "#로그모니터종료 \n 서버 로그 모니터링을 중지합니다. (특정 채팅방에서만 가능합니다)", log_monitor.stop_log_monitoring_command],
+    #['#로그모니터상태', "#로그모니터상태 \n 서버 로그 모니터링 상태를 확인합니다.", log_monitor.check_log_monitoring_status],
+    #['https://www.youtube.com/', "유튜브 영상 요약 \n 유튜브 링크를 올리면 자동으로 영상을 요약해줍니다", youtube_summary.GetData],
+    #['https://youtu.be/', "유튜브 영상 요약 \n 유튜브 단축 링크를 올리면 자동으로 영상을 요약해줍니다", youtube_summary.GetData],
+    #['https://youtube.com/', "유튜브 영상 요약 \n 유튜브 링크를 올리면 자동으로 영상을 요약해줍니다", youtube_summary.GetData],
     ['https://www.instagram.com/', "인스타 한장 요약 \n 인스타 링크를 올리면 한장 요약을 해주는 기능입니다", insta.GetData],
    # ['#펀드', "#펀드보유 (종목명/티커) (N일)\n미국 주식의 상위 펀드 보유 현황과 최근 N일 내 변동을 보여줍니다.", fund_holdings_service.GetFundHoldings],
 ]

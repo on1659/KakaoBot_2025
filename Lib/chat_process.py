@@ -45,6 +45,7 @@ class ChatProcess:
         self.chatroomHwnd = 0  # 채팅방 창 핸들 초기화
         self.hwndListControl = 0  # 리스트 컨트롤 핸들 초기화
         self.hwndkakao_edit3 = 0  # 검색 Edit 컨트롤 핸들 초기화
+        self._first_run = True  # 첫 실행 시 기존 메시지 무시용
         self.init()
 
     def init(self):
@@ -94,68 +95,59 @@ class ChatProcess:
     def SetForceGroundWindow(self, hwndMain):
         """
         주어진 창 핸들을 전면으로 가져오는 메서드입니다.
-        창이 최소화되어 있다면 복원하고, 포커스를 설정합니다.
-        SetForegroundWindow 예외를 안전하게 처리합니다.
+        Windows의 포커스 잠금 타임아웃을 해제한 뒤 포커스를 전환합니다.
         """
         if not win32gui.IsWindow(hwndMain):
             self.CustomPrint(f"❌ 유효하지 않은 창 핸들: {hwndMain}")
             return False
-        
+
         try:
-            # 현재 포커스된 창 정보 저장
             current_focus = win32gui.GetForegroundWindow()
-            current_focus_title = win32gui.GetWindowText(current_focus)
-            
-            # 이미 원하는 창이 포커스되어 있다면 바로 반환
+
             if current_focus == hwndMain:
                 return True
-            
-            # 창이 최소화되어 있다면 복원
+
             if win32gui.IsIconic(hwndMain):
                 win32gui.ShowWindow(hwndMain, win32con.SW_RESTORE)
-                time.sleep(0.05)
+                time.sleep(0.15)
 
-            # 창을 전면으로 가져오기 (여러 방법 시도)
-            success = False
+            # 포커스 잠금 타임아웃을 0으로 설정 (Windows 포커스 보호 해제)
+            SPI_SETFOREGROUNDLOCKTIMEOUT = 0x2001
+            SPIF_SENDCHANGE = 0x0002
+            ctypes.windll.user32.SystemParametersInfoW(
+                SPI_SETFOREGROUNDLOCKTIMEOUT, 0, 0, SPIF_SENDCHANGE
+            )
 
-            # 방법 1: 일반적인 SetForegroundWindow
+            # 현재 포커스된 창의 스레드에 연결
+            foreground_tid = GetWindowThreadProcessId(current_focus, None)
+            current_tid = GetCurrentThreadId()
+            attached = False
+            if foreground_tid != current_tid:
+                AttachThreadInput(current_tid, foreground_tid, True)
+                attached = True
+
             try:
+                # Alt키로 포커스 잠금 해제 + 포커스 전환
+                win32api.keybd_event(win32con.VK_MENU, 0, 0, 0)
+                win32api.keybd_event(win32con.VK_MENU, 0, win32con.KEYEVENTF_KEYUP, 0)
+                time.sleep(0.02)
+
+                win32gui.BringWindowToTop(hwndMain)
+                win32gui.ShowWindow(hwndMain, win32con.SW_SHOW)
                 win32gui.SetForegroundWindow(hwndMain)
-                time.sleep(0.05)
-                if win32gui.GetForegroundWindow() == hwndMain:
-                    success = True
-            except Exception as e:
-                self.CustomPrint(f"⚠️ SetForegroundWindow 실패: {e}")
+            except Exception:
+                pass
+            finally:
+                if attached:
+                    AttachThreadInput(current_tid, foreground_tid, False)
 
-            # 방법 2: ShowWindow + SetForegroundWindow 조합
-            if not success:
-                try:
-                    win32gui.ShowWindow(hwndMain, win32con.SW_SHOW)
-                    win32gui.ShowWindow(hwndMain, win32con.SW_RESTORE)
-                    time.sleep(0.05)
-                    win32gui.SetForegroundWindow(hwndMain)
-                    time.sleep(0.05)
-                    if win32gui.GetForegroundWindow() == hwndMain:
-                        success = True
-                except Exception as e:
-                    self.CustomPrint(f"⚠️ ShowWindow + SetForegroundWindow 실패: {e}")
-
-            # 방법 3: BringWindowToTop 사용
-            if not success:
-                try:
-                    win32gui.BringWindowToTop(hwndMain)
-                    time.sleep(0.05)
-                    if win32gui.GetForegroundWindow() == hwndMain:
-                        success = True
-                except Exception as e:
-                    self.CustomPrint(f"⚠️ BringWindowToTop 실패: {e}")
-            
-            if success:
+            time.sleep(0.15)
+            if win32gui.GetForegroundWindow() == hwndMain:
                 return True
-            else:
-                self.CustomPrint(f"⚠️ 창 포커스 실패 - 현재 포커스된 창: {current_focus_title}")
-                return False
-                
+
+            self.CustomPrint(f"⚠️ 창 포커스 실패 - 현재 포커스된 창: {win32gui.GetWindowText(win32gui.GetForegroundWindow())}")
+            return False
+
         except Exception as e:
             self.CustomPrint(f"❌ SetForceGroundWindow 예외 발생: {e}")
             return False
@@ -263,6 +255,9 @@ class ChatProcess:
             self.chatroomHwnd = win32gui.FindWindow(None, self.chatroom_name)
             if self.chatroomHwnd != 0:
                 self.hwndListControl = win32gui.FindWindowEx(self.chatroomHwnd, None, "EVA_VH_ListControl_Dblclk", None)
+        else:
+            # 핸들은 유효하지만, 다른 앱에 포커스가 있을 수 있으므로 포커스 확보
+            self.SetForceGroundWindow(self.chatroomHwnd)
 
         # 채팅 내용 복사
         CopyText = self.copy_cheat(self.chatroom_name, self.chatroomHwnd, self.hwndListControl)
@@ -274,6 +269,15 @@ class ChatProcess:
             return
         
         df = self.parse_chat_log(CopyText)
+
+        # 첫 실행 시 기존 메시지를 모두 "읽음" 처리하고 명령어 처리 스킵
+        if self._first_run:
+            if not df.empty:
+                self.last_index = df.iloc[-1]['line_idx']
+                self.CustomPrint(f"✅ 첫 실행 - 기존 메시지 스킵 (last_index: {self.last_index})")
+            self._first_run = False
+            return
+
         result = self.check_new_commands(df)
 
         if len(result) > 0:
@@ -461,21 +465,21 @@ class ChatProcess:
             focus_success = self.SetForceGroundWindow(hwndMain)
             if not focus_success:
                 Helper.CustomPrint(f"⚠️ [{cheat_room_name}] 1단계: 창 포커스 실패 - 계속 진행")
-            time.sleep(0.05)
+            time.sleep(0.1)
 
             # Tab 키로 입력창 포커스
             self.SendTab(1)
 
             # 클립보드 복사
             pyperclip.copy(text)
-            time.sleep(0.05)
+            time.sleep(0.1)
 
             # Ctrl+V (붙여넣기)
             win32api.keybd_event(win32con.VK_CONTROL, 0, 0, 0)
             win32api.keybd_event(0x56, 0, 0, 0)  # V key
             win32api.keybd_event(0x56, 0, win32con.KEYEVENTF_KEYUP, 0)
             win32api.keybd_event(win32con.VK_CONTROL, 0, win32con.KEYEVENTF_KEYUP, 0)
-            time.sleep(0.05)
+            time.sleep(0.1)
 
             # Enter 전송
             win32api.keybd_event(win32con.VK_RETURN, 0, 0, 0)
@@ -494,11 +498,11 @@ class ChatProcess:
         """
         # 카카오톡 창 포커스로 가져오기
         self.SetForceGroundWindow(hwndMain)
-        time.sleep(0.05)
+        time.sleep(0.1)
 
         # 입력창으로 포커스를 이동
         self.SendTab(1)
-        time.sleep(0.05)
+        time.sleep(0.1)
 
         # Ctrl+V (붙여넣기) 시뮬레이션
         win32api.keybd_event(win32con.VK_CONTROL, 0, 0, 0)
@@ -506,7 +510,7 @@ class ChatProcess:
         time.sleep(0.02)
         win32api.keybd_event(0x56, 0, win32con.KEYEVENTF_KEYUP, 0)
         win32api.keybd_event(win32con.VK_CONTROL, 0, win32con.KEYEVENTF_KEYUP, 0)
-        time.sleep(0.05)
+        time.sleep(1.0)  # 이미지 미리보기 팝업 렌더링 대기
 
         # 엔터키 시뮬레이션 (메시지 전송)
         win32api.keybd_event(win32con.VK_RETURN, 0, 0, 0)
@@ -571,9 +575,9 @@ class ChatProcess:
 
                 # Ctrl+A, Ctrl+C 조합키로 전체 복사
                 self.PostKeyEx(hwndListControl, ord('A'), [w.VK_CONTROL], False)
-                time.sleep(0.1)
+                time.sleep(0.2)
                 self.PostKeyEx(hwndListControl, ord('C'), [w.VK_CONTROL], False)
-                time.sleep(0.15)  # 클립보드 복사 대기
+                time.sleep(0.3)  # 클립보드 복사 대기
 
                 try:
                     # 클립보드 내용 가져오기 시도
@@ -841,10 +845,9 @@ class ChatProcess:
                     
                     try:
                         resultString, result_type = chat_func(self.chatroom_name, chat_command, message)
-
                         if result_type is not None:
-                            self.send(resultString, result_type)  # 메시지 전송
-                            self.CustomPrint(f"✅ 명령어 처리 완료: {self.chatroom_name} - {msg[:30]}... - [{result_type}]")
+                            self.send(resultString, result_type)
+                        self.CustomPrint(f"✅ 명령어 처리 완료: {self.chatroom_name} - {msg[:30]}... - [{result_type}]")
                     except Exception as e:
                         self.CustomPrint(f"❌ 명령어 처리 중 오류: {str(e)}")
 

@@ -1,0 +1,16 @@
+[
+  { "name": "YOUTUBE_API_KEY", "key": "" },
+  { "name": "OPENAI_API_KEY", "key": "" },
+  { "name": "GEMINI_API_KEY", "key": "" },
+  { "name": "GAME_WIKI_API_KEY", "key": "" },
+  { "name": "KAKAO_REST_API_KEY", "key": "" },
+  { "name": "KAKAO_ACCESS_TOKEN", "key": "" },
+  { "name": "KAKAO_REDIRECT_CODE", "key": "" },
+  { "name": "IG_APP_ID", "key": "" },
+  { "name": "IG_APP_KEY", "key": "" },
+  { "name": "IG_ACCESS_TOKEN", "key": "" },
+  { "name": "IG_USERNAME", "key": "" },
+  { "name": "IG_PASSWORD", "key": "" },
+  { "name": "FMP_API_KEY", "key": "" },
+  { "name": "SRT_API_KEY", "key": "" }
+]

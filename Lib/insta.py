@@ -1,5 +1,6 @@
 import requests
 import re
+import os
 from Lib import Helper
 from io import BytesIO
 from PIL import Image
@@ -9,6 +10,34 @@ import instaloader
 import time
 import random
 from datetime import datetime
+
+# instaloader 싱글톤 (로그인 세션 재사용)
+_loader = None
+
+def get_loader():
+    """로그인된 Instaloader 인스턴스를 반환합니다. (최초 1회만 로그인)"""
+    global _loader
+    if _loader is not None:
+        return _loader
+
+    _loader = instaloader.Instaloader(
+        download_pictures=False,
+        quiet=True,
+        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    )
+
+    try:
+        username = os.environ.get("IG_USERNAME", "")
+        password = os.environ.get("IG_PASSWORD", "")
+        if username and password:
+            _loader.login(username, password)
+            Helper.CustomPrint("✅ Instagram 로그인 성공")
+        else:
+            Helper.CustomPrint("⚠️ Instagram 로그인 정보 없음 - 비로그인 모드")
+    except Exception as e:
+        Helper.CustomPrint(f"⚠️ Instagram 로그인 실패 (비로그인 모드로 계속): {e}")
+
+    return _loader
 
 def log_error(error_msg):
     """
@@ -39,15 +68,11 @@ def ig_thumb(url, max_retries=3):
     for attempt in range(max_retries):
         try:
             shortcode = extract_shortcode(url)
-            L = instaloader.Instaloader(
-                download_pictures=False,
-                quiet=True,
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-            )
-            
+            L = get_loader()
+
             # 랜덤 딜레이 추가 (1-3초)
             time.sleep(random.uniform(1, 3))
-            
+
             post = instaloader.Post.from_shortcode(L.context, shortcode)
             return post.url  # 썸네일 URL
             
