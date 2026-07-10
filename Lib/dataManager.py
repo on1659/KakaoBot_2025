@@ -93,11 +93,8 @@ def format_available_commands(chat_command) -> str:
         if key == chat_command:
             continue
 
-        # description 이 'None' 이면 건너뛰거나 설명 없이 key만 출력할 수도 있어요
+        # description 이 'None'인 항목(별칭·숨김 명령)은 도움말에서 제외
         if description and description != "None":
-            # key 와 description 을 두 줄로 구분
-            lines.append(f"{description}")
-        else:
             lines.append(f"{description}")
     return "\n\n".join(lines)
 
@@ -135,6 +132,7 @@ chat_command_Map = [
     #['https://youtu.be/', "유튜브 영상 요약 \n 유튜브 단축 링크를 올리면 자동으로 영상을 요약해줍니다", youtube_summary.GetData],
     #['https://youtube.com/', "유튜브 영상 요약 \n 유튜브 링크를 올리면 자동으로 영상을 요약해줍니다", youtube_summary.GetData],
     ['https://www.instagram.com/', "인스타 한장 요약 \n 인스타 링크를 올리면 한장 요약을 해주는 기능입니다", insta.GetData],
+    ['https://instagram.com/', "None", insta.GetData],
    # ['#펀드', "#펀드보유 (종목명/티커) (N일)\n미국 주식의 상위 펀드 보유 현황과 최근 N일 내 변동을 보여줍니다.", fund_holdings_service.GetFundHoldings],
 ]
 

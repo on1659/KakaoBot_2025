@@ -30,6 +30,28 @@ MapVirtualKeyW = _user32.MapVirtualKeyW
 MakeLong = win32api.MAKELONG
 w = win32con
 
+
+def match_command(command_map, msg):
+    """
+    메시지에 매치되는 명령을 하나만 반환한다 (없으면 None) — 이중 발화 버그의 수정.
+    우선순위: 메시지에서 먼저 등장하는 키가 이기고, 같은 위치면 긴 키가 이긴다.
+    - '#modelcheck' → #model과 #modelcheck 둘 다 위치 0 → 긴 #modelcheck 선택
+    - '#gpt 이거 봐 https://instagram.com/...' → 앞선 #gpt 선택
+      (단순 긴 키 우선이면 뒤에 있는 URL 키가 명시적 명령을 가로챈다)
+    """
+    best = None
+    best_rank = None
+    for entry in command_map:
+        idx = msg.find(entry[0])
+        if idx < 0:
+            continue
+        rank = (idx, -len(entry[0]))
+        if best_rank is None or rank < best_rank:
+            best_rank = rank
+            best = entry
+    return best
+
+
 class ChatProcess:
     # 카카오톡 실행 상태 캐시 (클래스 변수 - 모든 인스턴스 공유)
     _kakao_running_cache = False
@@ -448,17 +470,21 @@ class ChatProcess:
         pyautogui.press("enter")
         time.sleep(0.3)
 
-    def send(self, text, type="text"):
+    def send(self, payload, type="text"):
         """
-        카카오톡 메시지 전송 (개선된 인터페이스)
+        카카오톡 메시지 전송
         Args:
-            text: 전송할 텍스트 (type="text"일 때)
+            payload: type="text"면 문자열, type="image"면 DIB 바이트
+                     (BMP 인코딩에서 14바이트 파일 헤더를 제거한 것 — insta.GetData 참조)
             type: "text" 또는 "image"
         """
         if type == "text":
-            self.sendtext(self.chatroom_name, self.chatroomHwnd, text)
+            self.sendtext(self.chatroom_name, self.chatroomHwnd, payload)
         elif type == "image":
-            self.send_image(self.chatroomHwnd, self.chatroom_name)
+            self.send_image(payload)
+        elif type != "none":
+            # "none"은 전송 없음이 계약이지만, 그 외 미지의 타입은 오타/계약 위반이다
+            Helper.CustomPrint(f"⚠️ [{self.chatroom_name}] 알 수 없는 전송 타입 무시: {type!r}")
 
     def sendtext(self, cheat_room_name, hwndMain, text):
         try:
@@ -492,12 +518,36 @@ class ChatProcess:
             import traceback
             Helper.CustomPrint(f"❌ [{cheat_room_name}] 스택 트레이스: {traceback.format_exc()}")
 
-    def send_image(self, hwndMain, cheat_room_name):
+    def _copy_dib_to_clipboard(self, dib_bytes):
         """
-        현재 클립보드에 있는 이미지를 카카오톡 채팅방에 붙여넣기(CTRL+V) 후 엔터키를 통해 전송합니다.
+        DIB 바이트를 클립보드에 올리고 같은 세션 안에서 CF_DIB 등록까지 확인한다.
+        (세션을 닫았다 다시 열어 확인하면 클립보드 리스너가 끼어드는 레이스가 생긴다)
+        try/finally로 클립보드 해제를 보장한다.
         """
+        try:
+            win32clipboard.OpenClipboard()
+            try:
+                win32clipboard.EmptyClipboard()
+                win32clipboard.SetClipboardData(win32con.CF_DIB, dib_bytes)
+                return bool(win32clipboard.IsClipboardFormatAvailable(win32con.CF_DIB))
+            finally:
+                win32clipboard.CloseClipboard()
+        except Exception as e:
+            Helper.CustomPrint(f"❌ [{self.chatroom_name}] 클립보드 이미지 복사 실패: {e}")
+            return False
+
+    def send_image(self, dib_bytes):
+        """
+        DIB 바이트를 클립보드에 올린 뒤 붙여넣기(CTRL+V)+엔터로 전송한다.
+        run()이 매 사이클 방 전체 채팅 로그를 클립보드에 복사해 두므로, 여기서 직접
+        올리고 CF_DIB를 확인하지 않으면 실패 시 채팅 로그가 그대로 방에 게시된다.
+        """
+        if not dib_bytes or not self._copy_dib_to_clipboard(dib_bytes):
+            self.sendtext(self.chatroom_name, self.chatroomHwnd, "이미지 전송에 실패했습니다.")
+            return
+
         # 카카오톡 창 포커스로 가져오기
-        self.SetForceGroundWindow(hwndMain)
+        self.SetForceGroundWindow(self.chatroomHwnd)
         time.sleep(0.1)
 
         # 입력창으로 포커스를 이동
@@ -515,6 +565,7 @@ class ChatProcess:
         # 엔터키 시뮬레이션 (메시지 전송)
         win32api.keybd_event(win32con.VK_RETURN, 0, 0, 0)
         win32api.keybd_event(win32con.VK_RETURN, 0, win32con.KEYEVENTF_KEYUP, 0)
+        Helper.CustomPrint(f"✅ [{self.chatroom_name}] 이미지 전송 완료 ({len(dib_bytes)} bytes)")
 
     ## 탭
     def SendTab(self, n=1):
@@ -838,18 +889,19 @@ class ChatProcess:
             if self.is_ignore_message(msg, name) == 1:
                 continue
 
-            for chat_command, desc, chat_func in dataManager.chat_command_Map:
-                if chat_command in msg:
-                    message = self.split_command(chat_command, msg)
-                    self.CustomPrint(f"🎯 명령어 감지: {chat_command} (line_idx: {line_idx})")
-                    
-                    try:
-                        resultString, result_type = chat_func(self.chatroom_name, chat_command, message)
-                        if result_type is not None:
-                            self.send(resultString, result_type)
-                        self.CustomPrint(f"✅ 명령어 처리 완료: {self.chatroom_name} - {msg[:30]}... - [{result_type}]")
-                    except Exception as e:
-                        self.CustomPrint(f"❌ 명령어 처리 중 오류: {str(e)}")
+            matched = match_command(dataManager.chat_command_Map, msg)
+            if matched is not None:
+                chat_command, desc, chat_func = matched
+                message = self.split_command(chat_command, msg)
+                self.CustomPrint(f"🎯 명령어 감지: {chat_command} (line_idx: {line_idx})")
+
+                try:
+                    resultString, result_type = chat_func(self.chatroom_name, chat_command, message)
+                    if result_type is not None:
+                        self.send(resultString, result_type)
+                    self.CustomPrint(f"✅ 명령어 처리 완료: {self.chatroom_name} - {msg[:30]}... - [{result_type}]")
+                except Exception as e:
+                    self.CustomPrint(f"❌ 명령어 처리 중 오류: {str(e)}")
 
         # 마지막 메시지 인덱스 갱신 (새 메시지가 있을 때만)
         if not message_df.empty:

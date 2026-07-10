@@ -1,0 +1,22 @@
+# KakaoBot runtime dependencies (docs/instagram_recovery plan section 4.1)
+# instaloader is pinned to the verified version - re-verify exception
+# classification (plan section 4.6) before upgrading.
+instaloader==4.15.2
+Pillow
+pillow-heif
+pywin32
+pyautogui
+pyperclip
+pywinauto
+pandas
+psutil
+requests
+openai
+google-api-python-client
+google-auth-oauthlib
+google-genai
+youtube-transcript-api
+ytmusicapi
+
+# tests (plan section 7)
+pytest
