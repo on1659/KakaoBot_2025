@@ -5,12 +5,20 @@
 __pycache__/
 *.pyc
 *.pyo
+.venv/
+.venv-build/
+build/
+artifacts/
 
 # 민감 정보 / 인증
 config/api_key.json
+config/api_key.json.*
+!config/api_key.json.example
 config/youtube_client_secrets.json
 config/chatrooms.json
 config/api_usage.json
+config/permissions.json
+config/DefaultSetting.ini.bak*
 token.pickle
 /kakao_token.json
 
