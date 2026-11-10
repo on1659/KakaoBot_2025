@@ -27,6 +27,7 @@ class LogMonitor:
         self.notification_room_name = notification_room_name
         self.monitoring = False
         self.monitor_thread = None
+        self._stop_event = threading.Event()
         self.last_positions = {}
         self.start_time = None  # 모니터링 시작 시간
         self.log_filename = log_filename
@@ -140,6 +141,7 @@ class LogMonitor:
             else:
                 Helper.CustomPrint(f"❌ 로그 파일이 존재하지 않음: {log_file}")
         
+        self._stop_event.clear()
         self.monitoring = True
         self.start_time = datetime.now()  # 모니터링 시작 시간 기록
         Helper.CustomPrint(f"⏰ 모니터링 시작 시간: {self.start_time.strftime('%H:%M:%S')}")
@@ -154,8 +156,10 @@ class LogMonitor:
     def stop_monitoring(self):
         """로그 모니터링 중지"""
         self.monitoring = False
+        self._stop_event.set()
         if self.monitor_thread:
-            self.monitor_thread.join(timeout=1)
+            self.monitor_thread.join(timeout=2)
+            self.monitor_thread = None
         Helper.CustomPrint("⏹️ 로그 모니터링 중지")
     
     def _monitor_loop(self):
@@ -174,10 +178,10 @@ class LogMonitor:
                     self.monitoring = False
                     break
                 
-                time.sleep(1)  # 1초마다 체크
+                self._stop_event.wait(1)  # 1초마다 체크, 종료 시 즉시 깨어남
             except Exception as e:
                 Helper.CustomPrint(f"❌ 로그 모니터링 오류: {str(e)}")
-                time.sleep(5)  # 오류 시 5초 대기
+                self._stop_event.wait(5)  # 오류 시 5초 대기, 종료 시 즉시 깨어남
     
     def _check_server_log(self, server_path):
         """개별 서버 로그 체크"""

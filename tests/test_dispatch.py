@@ -58,6 +58,27 @@ def test_help_output_hides_none_description():
     assert "\nNone" not in output and not output.endswith("None")
 
 
+def test_help_lists_only_active_features(monkeypatch, tmp_path):
+    # 권한 화면에서 끈 기능, 다른 방 전용 기능은 #? 안내에서 빠진다
+    from Lib import access_control
+
+    acl = access_control.AccessControl(tmp_path / "permissions.json", tmp_path / "seen.json")
+    rules = access_control.default_permissions()
+    rules["features"]["tts"]["enabled"] = False
+    rules["features"]["gpt"]["rooms"] = ["다른방"]
+    acl.save(rules)
+    monkeypatch.setattr(access_control, "get_default", lambda: acl)
+
+    output, kind = dataManager.GetData("이방", "#?", "")
+    assert kind == "text"
+    assert "#tts" not in output
+    assert "#gpt (내용)" not in output
+    assert "#유툽" in output and "#픽셀 (설명)" in output and "#지피티이미지 (설명)" in output
+    assert "#imagegen" not in output and "#pxicel" not in output
+
+    assert "#gpt (내용)" in dataManager.GetData("다른방", "#?", "")[0]
+
+
 def test_real_command_map_has_both_instagram_keys():
     keys = [k for k, _, _ in dataManager.chat_command_Map]
     assert 'https://www.instagram.com/' in keys

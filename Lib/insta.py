@@ -18,12 +18,11 @@ import re
 import time
 from datetime import datetime
 from io import BytesIO
-from pathlib import Path
 
 import requests
 import instaloader
 from PIL import Image
-from Lib import Helper
+from Lib import Helper, runtime_paths
 
 try:
     import pillow_heif
@@ -31,9 +30,8 @@ try:
 except ImportError:
     pass
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-SESSION_DIR = REPO_ROOT / "saved" / "instagram"
-ERROR_LOG_FILE = REPO_ROOT / "saved" / "instagram_errors.log"
+SESSION_DIR = runtime_paths.INSTAGRAM_SESSION_DIR
+ERROR_LOG_FILE = runtime_paths.INSTAGRAM_ERROR_LOG_FILE
 
 # 게시물/릴스 URL에서 shortcode 추출. 프로필/스토리/공유 리디렉션은 매치되지 않는다 (§4.4)
 URL_PATTERN = re.compile(r"https://(?:www\.)?instagram\.com/(?:p|reel|reels)/([A-Za-z0-9_-]+)")

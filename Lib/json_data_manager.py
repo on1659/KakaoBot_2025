@@ -1,8 +1,23 @@
 from . import dataManager
 from Lib import Helper
+import json
+import os
+from pathlib import Path
 
 API_KEY_FILE_PATH   = dataManager.API_KEY_FILE_PATH
 CHATROOM_FILE_PATH = dataManager.CHATROOM_FILE_PATH
+
+
+def _atomic_write_json(file_path, data):
+    """JSON을 같은 폴더의 임시 파일에 쓴 뒤 원자적으로 교체한다."""
+    target = Path(file_path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = target.with_suffix(target.suffix + ".tmp")
+    with open(temp_path, "w", encoding="utf-8") as file:
+        json.dump(data, file, indent=2, ensure_ascii=False)
+        file.flush()
+        os.fsync(file.fileno())
+    os.replace(temp_path, target)
 
 def save_chatroom_info(chatroom_name, chat_command, member_count, file_path=CHATROOM_FILE_PATH):
     """
@@ -62,8 +77,7 @@ def save_chatroom_info(chatroom_name, chat_command, member_count, file_path=CHAT
 
     Helper.CustomPrint("---- Step 3: Save updated data to JSON ----")
     try:
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=4, ensure_ascii=False)
+        _atomic_write_json(file_path, data)
         Helper.CustomPrint(f"    [INFO] JSON 파일 저장 완료: {file_path}")
     except Exception as e:
         Helper.CustomPrint(f"    [ERROR] JSON 저장 실패: {e}")
@@ -116,8 +130,7 @@ def update_chatroom_data(chatroom_name, column, value, file_path=CHATROOM_FILE_P
 
     # 파일 저장
     try:
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+        _atomic_write_json(file_path, data)
         Helper.CustomPrint(f"[INFO] '{chatroom_name}'의 '{column}' 값을 '{value}'로 변경 완료.")
         return True
     except Exception as e:
@@ -184,9 +197,6 @@ def get_chatroom_data(chatroom_name: str, column_name: str, file_path=CHATROOM_F
     """
     return getJsonData(file_path, "chatroom_name", chatroom_name, column_name)
 
-import json
-import os
-
 def load_api_keys(json_path=API_KEY_FILE_PATH):
     """
     JSON 파일(예: my_keys.json)에 다음과 같은 형식의 데이터를 로드하여
@@ -210,8 +220,6 @@ def load_api_keys(json_path=API_KEY_FILE_PATH):
     Helper.CustomPrint("==== DEBUG START ====")
     Helper.CustomPrint(f"★ Function: {json_path}")
     Helper.CustomPrint(f"★ JSON file path: {json_path}")
-    Helper.CustomPrint(f"★ Current working directory: {os.getcwd()}")
-
     # JSON 파일 읽기
     try:
         with open(json_path, "r", encoding="utf-8") as f:
@@ -231,12 +239,18 @@ def load_api_keys(json_path=API_KEY_FILE_PATH):
 
     # 읽어온 데이터를 os.environ에 등록
     loaded_keys = []
-    for entry in data:
+    for index, entry in enumerate(data, start=1):
+        if not isinstance(entry, dict):
+            Helper.CustomPrint(f"    [WARN] API 키 {index}번 항목 형식이 올바르지 않습니다.")
+            continue
         name = entry.get("name")
         key_value = entry.get("key")
 
         if not name or not key_value:
-            Helper.CustomPrint(f"    [WARN] name 혹은 key 필드가 누락되었습니다: {entry}")
+            Helper.CustomPrint(
+                f"    [WARN] API 키 {index}번 항목의 이름 또는 값이 비어 있습니다"
+                + (f" ({name})" if name else "")
+            )
             continue
 
         os.environ[name] = key_value

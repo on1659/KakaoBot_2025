@@ -5,6 +5,7 @@ import re
 import requests
 import os
 import pickle
+from Lib import runtime_paths
 
 # from Lib import Helper
 
@@ -26,8 +27,9 @@ class YoutubeVideoapi:
         creds = None
 
         # 토큰 파일이 있으면 로드
-        if os.path.exists('token.pickle'):
-            with open('token.pickle', 'rb') as token:
+        token_path = runtime_paths.YOUTUBE_TOKEN_FILE
+        if token_path.exists():
+            with open(token_path, 'rb') as token:
                 creds = pickle.load(token)
 
         # 유효한 인증 정보가 없으면 새로 인증
@@ -35,15 +37,13 @@ class YoutubeVideoapi:
             if creds and creds.expired and creds.refresh_token:
                 creds.refresh(Request())
             else:
-                # 현재 스크립트의 디렉토리를 기준으로 상대 경로 계산
-                current_dir = os.path.dirname(os.path.abspath(__file__))
-                client_secrets_path = os.path.join(os.path.dirname(current_dir), 'config', 'youtube_client_secrets.json')
                 flow = InstalledAppFlow.from_client_secrets_file(
-                    client_secrets_path, SCOPES)
+                    str(runtime_paths.YOUTUBE_CLIENT_SECRETS_FILE), SCOPES)
                 creds = flow.run_local_server(port=0)
             
             # 토큰 저장
-            with open('token.pickle', 'wb') as token:
+            token_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(token_path, 'wb') as token:
                 pickle.dump(creds, token)
 
         self.credentials = creds

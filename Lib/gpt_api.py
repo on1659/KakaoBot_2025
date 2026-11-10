@@ -2,18 +2,28 @@ import os
 import openai
 import json
 import time
+import threading
 from datetime import datetime, timedelta
-from pathlib import Path
 
 from . import json_data_manager  # 같은 패키지 내 모듈로 가정
 from . import dataManager  # 같은 패키지 내 모듈로 가정
+from . import runtime_paths
 
 # 1) OpenAI API Key 설정
 openai.api_key = os.environ.get("OPENAI_API_KEY")
 GPT_MAX_TOKEN = int(dataManager.GPT_MAX_TOKEN)
+_usage_lock = threading.Lock()
 
 # API 사용량 모니터링을 위한 파일 경로
-USAGE_LOG_FILE = Path(__file__).parent.parent / "config" / "api_usage.json"
+USAGE_LOG_FILE = runtime_paths.API_USAGE_FILE
+
+
+def _ensure_openai_key():
+    """API JSON 로드 이후의 환경변수를 OpenAI 클라이언트에 반영한다."""
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if api_key:
+        openai.api_key = api_key
+    return api_key
 
 def load_usage_data():
     """API 사용량 데이터를 로드합니다."""
@@ -32,38 +42,42 @@ def load_usage_data():
 def save_usage_data(data):
     """API 사용량 데이터를 저장합니다."""
     try:
-        with open(USAGE_LOG_FILE, 'w', encoding='utf-8') as f:
+        USAGE_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        temp_path = USAGE_LOG_FILE.with_suffix(USAGE_LOG_FILE.suffix + ".tmp")
+        with open(temp_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(temp_path, USAGE_LOG_FILE)
     except Exception as e:
         print(f"사용량 데이터 저장 실패: {e}")
 
 def log_api_usage(model_name, prompt_length, response_length):
     """API 사용량을 로깅합니다."""
-    data = load_usage_data()
-    today = datetime.now().strftime("%Y-%m-%d")
-    
-    # 일일 사용량 초기화 (새로운 날이면)
-    if data["last_reset"] != today:
-        data["daily_usage"] = {}
-        data["last_reset"] = today
-    
-    # 오늘 사용량 업데이트
-    if today not in data["daily_usage"]:
-        data["daily_usage"][today] = {
-            "requests": 0,
-            "total_tokens": 0,
-            "models": {}
-        }
-    
-    data["daily_usage"][today]["requests"] += 1
-    data["daily_usage"][today]["total_tokens"] += prompt_length + response_length
-    data["total_requests"] += 1
-    
-    if model_name not in data["daily_usage"][today]["models"]:
-        data["daily_usage"][today]["models"][model_name] = 0
-    data["daily_usage"][today]["models"][model_name] += 1
-    
-    save_usage_data(data)
+    with _usage_lock:
+        data = load_usage_data()
+        today = datetime.now().strftime("%Y-%m-%d")
+
+        if data.get("last_reset") != today:
+            data["daily_usage"] = {}
+            data["last_reset"] = today
+
+        if today not in data["daily_usage"]:
+            data["daily_usage"][today] = {
+                "requests": 0,
+                "total_tokens": 0,
+                "models": {}
+            }
+
+        data["daily_usage"][today]["requests"] += 1
+        data["daily_usage"][today]["total_tokens"] += prompt_length + response_length
+        data["total_requests"] += 1
+
+        if model_name not in data["daily_usage"][today]["models"]:
+            data["daily_usage"][today]["models"][model_name] = 0
+        data["daily_usage"][today]["models"][model_name] += 1
+
+        save_usage_data(data)
 
 def get_usage_summary():
     """API 사용량 요약을 반환합니다."""
@@ -101,6 +115,8 @@ def ask_gpt(prompt: str, model_name: str = None):
     사용자 프롬프트(prompt)와 모델 이름(model_name)을 받아,
     OpenAI Chat API를 호출 후 (응답문자열, "text") 를 반환.
     """
+    _ensure_openai_key()
+
     # model_name이 None이면 설정 파일의 기본값 사용
     if model_name is None:
         model_name = dataManager.GPT_DEFAULT_MODEL

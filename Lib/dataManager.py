@@ -1,12 +1,9 @@
-import sys
-from pathlib import Path
 import configparser
-from Lib import Helper
+from Lib import Helper, access_control, runtime_paths
 
 # ─── ini 파일 경로 설정 ────────────────────────────────────────────────
-# 이 스크립트가 있는 폴더의 한 단계 위에 DefaultSetting.ini 가 있다고 가정
-base_dir = Path(__file__).resolve().parent
-ini_path = base_dir.parent / 'config' / 'DefaultSetting.ini'
+runtime_paths.ensure_runtime_layout()
+ini_path = runtime_paths.SETTINGS_FILE
 ignore_message = "=== 사용 가능한 명령어 ==="
 
 # ─── 파일 존재 여부 체크 ────────────────────────────────────────────────T
@@ -15,7 +12,7 @@ if not ini_path.exists():
 
 # ─── configparser 초기화 ───────────────────────────────────────────────
 # allow_no_value=True 로 값 없이 섹션 내에 키만 나열해도 파싱 가능하도록
-DefaultSettingConfig = configparser.ConfigParser(allow_no_value=True)
+DefaultSettingConfig = configparser.ConfigParser(allow_no_value=True, interpolation=None)
 
 # 옵션 이름(option) 그대로 보존 (소문자 변환 방지)
 DefaultSettingConfig.optionxform = lambda option: option
@@ -37,8 +34,12 @@ EVERY_MENTION_DEFAULT_DELAY_TIME = float(DefaultSettingConfig.get('EveryMentionD
 # ─── [EveryMentionDefaultDelayTime] #all 멘션 Delay Time ───────────────────────
 
 # ─── [API_KEY_FILE_PATH] json manager에서 사용될 데이터들 미리 Load ───────────────────────
-API_KEY_FILE_PATH   = DefaultSettingConfig.get('APIKey', 'path')
-CHATROOM_FILE_PATH = DefaultSettingConfig.get('ChattingRoomSetting', 'path')
+API_KEY_FILE_PATH = str(runtime_paths.resolve_data_path(
+    DefaultSettingConfig.get('APIKey', 'path', fallback='config/api_key.json')
+))
+CHATROOM_FILE_PATH = str(runtime_paths.resolve_data_path(
+    DefaultSettingConfig.get('ChattingRoomSetting', 'path', fallback='config/chatrooms.json')
+))
 # ─── [API_KEY_FILE_PATH] json manager에서 사용될 데이터들 미리 Load ───────────────────────
 
 # ─── [BotName] BotName ───────────────────────
@@ -83,14 +84,34 @@ if 'RADAR' in DefaultSettingConfig:
 # ─── [RADAR] ───────────────────────
 
 
-def format_available_commands(chat_command) -> str:
+def _is_feature_active(rules, opentalk_name, key) -> bool:
+    """권한 설정에서 이 명령의 기능이 켜져 있고, 이 방에서 허용되는지."""
+    feature = access_control.feature_for_command(key)
+    rule = rules["features"].get(feature.id, access_control.default_rule())
+    if not rule["enabled"]:
+        return False
+    if opentalk_name is not None and rule["rooms"] and opentalk_name not in rule["rooms"]:
+        return False
+    return True
+
+
+def format_available_commands(chat_command, opentalk_name=None) -> str:
     """
-    chat_command_Map_All 에 정의된
-    key와 description을 예쁘게 포매팅해서 반환
+    chat_command_Map 에 정의된 명령 중 현재 활성화된 기능의
+    description만 포매팅해서 반환 (권한 화면에서 끈 기능·이 방에서 막힌 기능은 제외)
     """
+    try:
+        rules = access_control.get_default().load()
+    except Exception as e:
+        Helper.CustomPrint(f"⚠️ 권한 설정을 읽지 못해 전체 명령어를 안내합니다: {e}")
+        rules = access_control.default_permissions()
+
     lines = [ignore_message]
     for key, description, handle in chat_command_Map:
         if key == chat_command:
+            continue
+
+        if not _is_feature_active(rules, opentalk_name, key):
             continue
 
         # description 이 'None'인 항목(별칭·숨김 명령)은 도움말에서 제외
@@ -103,12 +124,13 @@ def GetData(opentalk_name, chat_command, message):
     '#command' 커맨드가 들어오면
     format_available_commands() 의 결과를 리턴하도록 구현
     """
-    return format_available_commands(chat_command), "text"
+    return format_available_commands(chat_command, opentalk_name), "text"
 
 # ─── 커맨드 맵 정의하기 위해서 선언 ─────────────────────────────────────────────────────
 
 from Lib import youtube, convert_naver_map, every_mention, json_data_manager
-from Lib import gpt_api, insta, log_monitor, youtube_summary, radar_api
+from Lib import gpt_api, insta, log_monitor, youtube_summary, radar_api, random_pick
+from Lib import elevenlabs_api, image_gen, minecraft_status
 # from Lib import fund_holdings_service
 
 # ─── 커맨드 맵 정의 ─────────────────────────────────────────────────────
@@ -125,6 +147,15 @@ chat_command_Map = [
     ['#gpt', "#gpt (내용) \n gpt 에 검색하여 나온 질의를 응답해줍니다. 비용문제로 안될 수 있습니다.", gpt_api.getData],
     ['#사용량확인', "#사용량확인 \n OpenAI API 사용량 현황을 확인합니다.", gpt_api.api_usage_status],
     ['#radar', "#radar (게임) (질문) 또는 (질문)\n 게임위키 AI (마인크래프트/팰월드/오버워치) 질의", radar_api.getData],
+    ['#tts', "#tts (내용) \n 내용을 음성으로 읽어 파일로 보내줍니다.", elevenlabs_api.tts],
+    ['#bgm', "#bgm (설명) \n 설명에 맞는 배경음악을 만들어 보내줍니다. 최대 20초. 예) #bgm 잔잔한 로파이 피아노 / #bgm 15초 신나는 게임 음악", elevenlabs_api.bgm],
+    ['#픽셀', "#픽셀 (설명) \n 픽셀아트를 그려서 보내줍니다. 예) #픽셀 검을 든 기사", image_gen.pixel],
+    ['#pxicel', "None", image_gen.pixel],   # 예전 이름 — 계속 동작하지만 도움말에는 안 나온다
+    ['#pixel', "None", image_gen.pixel],
+    ['#지피티이미지', "#지피티이미지 (설명) \n AI가 그림을 그려서 보내줍니다. 예) #지피티이미지 우주에서 낚시하는 고양이", image_gen.imagegen],
+    ['#이미지피티', "None", image_gen.imagegen],   # 별칭 — 동작하지만 도움말에는 안 나온다
+    ['#imagegen', "None", image_gen.imagegen],     # 예전 이름
+    ['#마크', "#마크 \n 마인크래프트 서버에 지금 접속 중인 사람을 알려줍니다.", minecraft_status.GetData],
     #['#로그모니터시작', "#로그모니터시작 \n 서버 로그 모니터링을 시작합니다. (특정 채팅방에서만 가능합니다)", log_monitor.start_log_monitoring_command],
     #['#로그모니터종료', "#로그모니터종료 \n 서버 로그 모니터링을 중지합니다. (특정 채팅방에서만 가능합니다)", log_monitor.stop_log_monitoring_command],
     #['#로그모니터상태', "#로그모니터상태 \n 서버 로그 모니터링 상태를 확인합니다.", log_monitor.check_log_monitoring_status],
@@ -133,6 +164,7 @@ chat_command_Map = [
     #['https://youtube.com/', "유튜브 영상 요약 \n 유튜브 링크를 올리면 자동으로 영상을 요약해줍니다", youtube_summary.GetData],
     ['https://www.instagram.com/', "인스타 한장 요약 \n 인스타 링크를 올리면 한장 요약을 해주는 기능입니다", insta.GetData],
     ['https://instagram.com/', "None", insta.GetData],
+    [random_pick.TRIGGER, "(선택지) vs (선택지) \n 여러 선택지 중 하나를 랜덤으로 골라줍니다. 예) 짜장 vs 짬뽕 vs 볶음밥", random_pick.GetData],
    # ['#펀드', "#펀드보유 (종목명/티커) (N일)\n미국 주식의 상위 펀드 보유 현황과 최근 N일 내 변동을 보여줍니다.", fund_holdings_service.GetFundHoldings],
 ]
 

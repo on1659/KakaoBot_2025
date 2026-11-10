@@ -6,9 +6,16 @@ import subprocess
 import requests
 import json
 import configparser
+import threading
+
+from Lib import runtime_paths
 
 IS_DEBUG_MODE = 'pydevd' in sys.modules
 log_file = None
+_log_lock = threading.RLock()
+_log_subscribers = []
+MAX_LOG_BYTES = 10 * 1024 * 1024
+MAX_LOG_BACKUPS = 5
 
 def read_github_settings():
     """
@@ -16,8 +23,8 @@ def read_github_settings():
     """
     try:
         config = configparser.ConfigParser(allow_no_value=True)
-        config_path = 'config/DefaultSetting.ini'
-        CustomPrint(f"🔍 설정 파일 경로: {os.path.abspath(config_path)}")
+        config_path = runtime_paths.SETTINGS_FILE
+        CustomPrint(f"🔍 설정 파일 경로: {config_path}")
         
         if not os.path.exists(config_path):
             CustomPrint(f"❌ 설정 파일이 존재하지 않습니다: {config_path}")
@@ -27,13 +34,6 @@ def read_github_settings():
             }
             
         config.read(config_path, encoding='utf-8')
-        
-        # 설정 파일의 모든 섹션과 값 출력
-        CustomPrint("📋 설정 파일 내용:")
-        for section in config.sections():
-            CustomPrint(f"  [{section}]")
-            for key, value in config[section].items():
-                CustomPrint(f"    {key} = {value}")
         
         auto_update = config.getboolean('GitHub', 'autoUpdate', fallback=False)
         branch = config.get('GitHub', 'branch', fallback='main')
@@ -183,56 +183,99 @@ def perform_git_update():
 
 def ensure_saved_directory():
     """saved 디렉토리가 없으면 생성"""
-    if not os.path.exists("saved"):
-        os.makedirs("saved")
+    runtime_paths.SAVED_DIR.mkdir(parents=True, exist_ok=True)
 
 def rotate_log_file():
-    """기존 로그 파일이 있으면 백업"""
-    log_path = os.path.join("saved", "log.txt")
-    if os.path.exists(log_path):
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_path = os.path.join("saved", f"log_{timestamp}.txt")
-        try:
-            shutil.move(log_path, backup_path)
-        except Exception as e:
-            print(f"로그 파일 백업 중 오류 발생: {e}")
+    """크기가 큰 실제 로그 파일(log.log)을 회전하고 오래된 백업을 정리한다."""
+    log_path = runtime_paths.SAVED_DIR / "log.log"
+    if not log_path.exists() or log_path.stat().st_size < MAX_LOG_BYTES:
+        return
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_path = runtime_paths.SAVED_DIR / f"log_{timestamp}.log"
+    try:
+        shutil.move(str(log_path), str(backup_path))
+        backups = sorted(
+            runtime_paths.SAVED_DIR.glob("log_*.log"),
+            key=lambda path: path.stat().st_mtime,
+            reverse=True,
+        )
+        for old_backup in backups[MAX_LOG_BACKUPS:]:
+            try:
+                old_backup.unlink()
+            except OSError:
+                pass
+    except Exception as e:
+        print(f"로그 파일 백업 중 오류 발생: {e}", flush=True)
 
 def init_log_file():
     global log_file
-    try:
-        ensure_saved_directory()
-        rotate_log_file()
-        log_file = open(os.path.join("saved", "log.log"), "a", encoding="utf-8")
-        atexit.register(close_log_file)  # 프로그램 종료 시 파일 닫기
-    except Exception as e:
-        print(f"로그 파일 초기화 중 오류 발생: {e}")
+    with _log_lock:
+        if log_file is not None:
+            return
+        try:
+            ensure_saved_directory()
+            rotate_log_file()
+            log_file = open(runtime_paths.SAVED_DIR / "log.log", "a", encoding="utf-8")
+            atexit.register(close_log_file)  # 프로그램 종료 시 파일 닫기
+        except Exception as e:
+            print(f"로그 파일 초기화 중 오류 발생: {e}", flush=True)
 
 def close_log_file():
     global log_file
-    if log_file:
-        try:
-            log_file.close()
-        except Exception as e:
-            print(f"로그 파일 닫기 중 오류 발생: {e}")
+    with _log_lock:
+        if log_file:
+            try:
+                log_file.close()
+            except Exception as e:
+                print(f"로그 파일 닫기 중 오류 발생: {e}", flush=True)
+            finally:
+                log_file = None
+
+
+def add_log_listener(callback):
+    """UI/워커 브리지에서 새 로그를 구독한다."""
+    with _log_lock:
+        if callback not in _log_subscribers:
+            _log_subscribers.append(callback)
+
+
+def remove_log_listener(callback):
+    with _log_lock:
+        if callback in _log_subscribers:
+            _log_subscribers.remove(callback)
 
 def CustomPrint(messages, saveLog = True):
     global log_file
     full_message = "".join(str(m) for m in messages)
     ts = datetime.now().strftime("%m-%d-%H:%M:%S")
     log_message = f"{ts} // {full_message}"
-    print(log_message)
+    try:
+        print(log_message, flush=True)
+    except (BrokenPipeError, OSError):
+        pass
     
     # saveLog가 True일 때만 로그 파일에 기록
     if saveLog:
         if log_file is None:
             init_log_file()
         
+        with _log_lock:
+            try:
+                if log_file:
+                    log_file.write(log_message + "\n")
+                    log_file.flush()  # 버퍼를 즉시 디스크에 기록
+            except Exception as e:
+                print(f"로그 파일 기록 중 오류 발생: {e}", flush=True)
+
+    with _log_lock:
+        listeners = tuple(_log_subscribers)
+    for callback in listeners:
         try:
-            if log_file:
-                log_file.write(log_message + "\n")
-                log_file.flush()  # 버퍼를 즉시 디스크에 기록
-        except Exception as e:
-            print(f"로그 파일 기록 중 오류 발생: {e}")
+            callback(log_message)
+        except Exception:
+            # 로깅 구독자의 오류가 봇 실행을 중단하면 안 된다.
+            pass
 
 def is_debug_mode() -> bool:
     # PyCharm(또는 다른 IDE) 디버거가 붙어 있을 때만 True
@@ -274,36 +317,15 @@ def check_git_configuration():
                 check=True
             )
             remote_url = remote_result.stdout.strip()
-            CustomPrint(f"✅ 원격 저장소: {remote_url}")
+            if not remote_url:
+                return False
+            CustomPrint("✅ 원격 저장소(origin) 설정 확인")
         except subprocess.CalledProcessError:
             CustomPrint("❌ 원격 저장소(origin)가 설정되어 있지 않습니다.")
             return False
         
-        # Git 설정 개선
-        git_configs = [
-            ('core.autocrlf', 'false'),
-            ('core.safecrlf', 'false'),
-            ('core.quotepath', 'false'),
-            ('color.ui', 'never'),
-            ('color.branch', 'never'),
-            ('color.status', 'never'),
-            ('color.diff', 'never'),
-            ('pager.branch', 'false'),
-            ('pager.log', 'false'),
-            ('pager.status', 'false')
-        ]
-        
-        for key, value in git_configs:
-            try:
-                subprocess.run(
-                    ['git', 'config', '--global', key, value], 
-                    check=True, 
-                    capture_output=True
-                )
-            except subprocess.CalledProcessError:
-                CustomPrint(f"⚠️ Git 설정 실패: {key} = {value}")
-        
-        CustomPrint("✅ Git 설정 확인 및 개선 완료")
+        # 애플리케이션이 사용자의 전역 Git 설정을 변경하지는 않는다.
+        CustomPrint("✅ Git 실행 환경 확인 완료")
         return True
         
     except Exception as e:
