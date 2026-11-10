@@ -3,6 +3,8 @@
   { "name": "OPENAI_API_KEY", "key": "" },
   { "name": "GEMINI_API_KEY", "key": "" },
   { "name": "GAME_WIKI_API_KEY", "key": "" },
+  { "name": "ELEVENLABS_API_KEY", "key": "" },
+  { "name": "PIXELLAB_API_KEY", "key": "" },
   { "name": "KAKAO_REST_API_KEY", "key": "" },
   { "name": "KAKAO_ACCESS_TOKEN", "key": "" },
   { "name": "KAKAO_REDIRECT_CODE", "key": "" },
