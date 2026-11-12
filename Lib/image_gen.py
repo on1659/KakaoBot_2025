@@ -3,7 +3,7 @@
 그림 생성 명령.
 
 - #픽셀 (설명): PixelLab 픽셀아트를 만들어 이미지로 전송한다. (#pxicel, #pixel 도 같은 명령)
-- #스프라이트 (설명): PixelLab으로 움직이는 픽셀아트를 만들어 GIF와 스프라이트 시트로 전송한다. (#sprite)
+- #애니 (설명): PixelLab으로 움직이는 픽셀아트를 만들어 GIF와 스프라이트 시트로 전송한다. (#sprite)
 - #지피티이미지 (설명): AI 그림을 만들어 이미지로 전송한다. (#이미지피티, #imagegen 도 같은 명령)
 
 Aside(AI 브라우저) 채팅 경로 (aside_agent 참조): Aside 에이전트에게 채팅으로 요청하고,
@@ -222,13 +222,13 @@ SPRITE_GIF_MIN_SIDE = 384
 SPRITE_SHEET_SCALE = 2
 
 MSG_SPRITE_USAGE = (
-    "사용법: #스프라이트 (그릴 내용과 동작)\n"
-    "예) #스프라이트 검 휘두르는 여우 기사 / 동작을 안 쓰면 숨쉬는 대기 동작으로 만듭니다"
+    "사용법: #애니 (그릴 내용과 동작)\n"
+    "예) #애니 검 휘두르는 여우 기사 / 동작을 안 쓰면 숨쉬는 대기 동작으로 만듭니다"
 )
-MSG_SPRITE_ACK = "🎞️ 스프라이트를 요청하였습니다. 잠시만 기다려주세요. (2~4분 걸려요)"
-MSG_SPRITE_NEED_KEY = "스프라이트는 PixelLab API 키가 있어야 만들 수 있습니다. 관리자에게 문의해주세요."
+MSG_SPRITE_ACK = "🎞️ 픽셀 애니메이션을 요청하였습니다. 잠시만 기다려주세요. (2~4분 걸려요)"
+MSG_SPRITE_NEED_KEY = "#애니는 PixelLab API 키가 있어야 만들 수 있습니다. 관리자에게 문의해주세요."
 MSG_SPRITE_FAILED = "PixelLab이 움직임을 만들지 못했습니다. 설명을 바꿔서 다시 시도해주세요."
-MSG_SPRITE_TIMEOUT = "스프라이트 생성이 너무 오래 걸려 중단했습니다. 잠시 후 다시 시도해주세요."
+MSG_SPRITE_TIMEOUT = "애니메이션 생성이 너무 오래 걸려 중단했습니다. 잠시 후 다시 시도해주세요."
 
 _SPRITE_INSTRUCTION = (
     "Split the chat user's request below into a pixel-art game sprite prompt and an animation.\n"
@@ -440,7 +440,7 @@ def generate_sprite(description):
 
 
 def sprite(opentalk_name, chat_command, message):
-    """#스프라이트 / #sprite 핸들러 — PixelLab API로 움직이는 픽셀아트를 만든다 (Aside 경로 없음)."""
+    """#애니 / #sprite 핸들러 — PixelLab API로 움직이는 픽셀아트를 만든다 (Aside 경로 없음)."""
     description = media_common.extract_prompt(chat_command, message)
     if not description:
         return MSG_SPRITE_USAGE, "text"

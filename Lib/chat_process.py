@@ -692,7 +692,7 @@ class ChatProcess:
             payload: type="text"면 문자열, type="image"면 DIB 바이트
                      (BMP 인코딩에서 14바이트 파일 헤더를 제거한 것 — insta.GetData 참조),
                      type="file"이면 보낼 파일의 경로 (예: #tts가 만든 mp3),
-                     type="batch"면 [(payload, type), ...] — 차례로 보낸다 (예: #스프라이트의 GIF + 시트)
+                     type="batch"면 [(payload, type), ...] — 차례로 보낸다 (예: #애니의 GIF + 시트)
             type: "text" | "image" | "file" | "batch"
         """
         if type == "batch":

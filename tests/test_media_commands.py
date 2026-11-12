@@ -77,7 +77,7 @@ def dib_size(dib):
         ("#이미지피티 고양이", "#이미지피티"),
         ("#지피티이미지 고양이", "#지피티이미지"),
         ("#마크", "#마크"),
-        ("#스프라이트 여우", "#스프라이트"),
+        ("#애니 여우", "#애니"),
         ("#sprite fox", "#sprite"),
     ],
 )
@@ -1008,7 +1008,7 @@ def test_sprite_splits_korean_request_into_subject_and_action(monkeypatch, tmp_p
     api = SpriteAPI(monkeypatch, tmp_path)
     monkeypatch.setenv("GEMINI_API_KEY", "g-key")
     seen = _fake_gemini(monkeypatch, reply="an orange fox knight with a sword ||| swinging a sword")
-    payload, kind = image_gen.sprite("방", "#스프라이트", "검 휘두르는 여우 기사")
+    payload, kind = image_gen.sprite("방", "#애니", "검 휘두르는 여우 기사")
     assert kind == "batch"
     assert seen[0][1].endswith("검 휘두르는 여우 기사")
     assert api.posts[0][1]["json"]["description"] == "an orange fox knight with a sword"
@@ -1017,7 +1017,7 @@ def test_sprite_splits_korean_request_into_subject_and_action(monkeypatch, tmp_p
 
 def test_sprite_refuses_untranslated_korean(monkeypatch, tmp_path):
     api = SpriteAPI(monkeypatch, tmp_path)
-    assert image_gen.sprite("방", "#스프라이트", "여우 기사") == (image_gen.MSG_PIXEL_NEED_ENGLISH, "text")
+    assert image_gen.sprite("방", "#애니", "여우 기사") == (image_gen.MSG_PIXEL_NEED_ENGLISH, "text")
     assert api.posts == []
 
 
@@ -1035,8 +1035,8 @@ def test_sprite_times_out_and_cancels_job(monkeypatch, tmp_path):
 
 
 def test_sprite_usage_and_missing_key():
-    assert image_gen.sprite("방", "#스프라이트", " ") == (image_gen.MSG_SPRITE_USAGE, "text")
-    assert image_gen.sprite("방", "#스프라이트", "여우") == (image_gen.MSG_SPRITE_NEED_KEY, "text")
+    assert image_gen.sprite("방", "#애니", " ") == (image_gen.MSG_SPRITE_USAGE, "text")
+    assert image_gen.sprite("방", "#애니", "여우") == (image_gen.MSG_SPRITE_NEED_KEY, "text")
 
 
 @pytest.mark.parametrize(
