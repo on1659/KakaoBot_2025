@@ -56,8 +56,9 @@ FEATURES: tuple[Feature, ...] = (
     Feature("random_pick", "랜덤 선택 (A vs B)", ("vs",)),
     Feature("tts", "음성 읽어주기 (#tts)", ("#tts",)),
     Feature("sound_effect", "배경음악 만들기 (#bgm)", ("#bgm",)),
-    # #애니도 같은 PixelLab 계정의 생성 횟수를 쓰므로 같은 권한으로 묶는다
-    Feature("pixel_art", "픽셀아트 그리기 (#픽셀, #애니)", ("#픽셀", "#pxicel", "#pixel", "#애니", "#sprite")),
+    Feature("pixel_art", "픽셀아트 그리기 (#픽셀)", ("#픽셀", "#pxicel", "#pixel")),
+    # 한 번에 PixelLab 생성 횟수를 3회 쓴다 (#픽셀은 1회) — 따로 켜고 끌 수 있게 분리
+    Feature("pixel_anim", "픽셀 애니메이션 (#애니)", ("#애니", "#sprite")),
     Feature("image_gen", "AI 그림 그리기 (#지피티이미지)", ("#지피티이미지", "#이미지피티", "#imagegen")),
     Feature("minecraft", "마크 서버 접속자 확인 (#마크)", ("#마크",)),
 )
