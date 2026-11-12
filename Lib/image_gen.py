@@ -18,12 +18,14 @@ Aside(AI 브라우저) 채팅 경로 (aside_agent 참조): Aside 에이전트에
 성공 시 (DIB 바이트, "image"), 실패 시 (안내문, "text")를 방의 메시지 큐로 보낸다.
 """
 import base64
+import json
 import os
+import threading
 import time
 
 import requests
 
-from Lib import Helper, aside_agent, media_common
+from Lib import Helper, aside_agent, media_common, runtime_paths
 
 MAX_PROMPT_CHARS = aside_agent.MAX_DESCRIPTION_CHARS
 
@@ -217,6 +219,8 @@ SPRITE_PIXEL_BUDGET = 524288   # API 한도: 가로 × 세로 × 프레임 수
 SPRITE_DEFAULT_ACTION = "idle breathing loop with subtle bobbing"
 SPRITE_POLL_SEC = 5
 SPRITE_JOB_TIMEOUT_SEC = 480
+SPRITE_BUSY_RETRY_SEC = 10     # PixelLab 동시 작업 한도(429)에 걸리면 이 간격으로
+SPRITE_BUSY_WAIT_SEC = 240     # 이 시간까지 다시 시도한다 (다른 방의 #애니 한 건이 끝날 만큼)
 SPRITE_GIF_FRAME_MS = 110
 SPRITE_GIF_MIN_SIDE = 384
 SPRITE_SHEET_SCALE = 2
@@ -277,20 +281,35 @@ def _pixellab_http_error(response, source):
     return f"PixelLab 오류가 발생했습니다. (HTTP {response.status_code})"
 
 
+def _post_waiting_if_busy(url, headers, payload, timeout, what):
+    """
+    PixelLab은 동시 작업 수를 넘으면 429(Too many concurrent jobs)를 준다. 다른 방의 #애니가
+    도는 중일 수 있으므로 바로 실패하지 않고 SPRITE_BUSY_WAIT_SEC 동안 다시 시도한다.
+    """
+    deadline = time.monotonic() + SPRITE_BUSY_WAIT_SEC
+    while True:
+        response = requests.post(url, headers=headers, json=payload, timeout=timeout)
+        if response.status_code != 429 or time.monotonic() + SPRITE_BUSY_RETRY_SEC > deadline:
+            return response
+        Helper.CustomPrint(f"⏳ [sprite] PixelLab 동시 작업 한도 — {what} {SPRITE_BUSY_RETRY_SEC}초 뒤 다시 시도")
+        time.sleep(SPRITE_BUSY_RETRY_SEC)
+
+
 def _sprite_base_image(api_key, subject, size):
     """배경 없는 기본 그림. 반환: (base64 문자열, None) 또는 (None, 안내문)."""
     try:
-        response = requests.post(
+        response = _post_waiting_if_busy(
             PIXELLAB_URL,
-            headers={"Authorization": f"Bearer {api_key}"},
-            json={
+            {"Authorization": f"Bearer {api_key}"},
+            {
                 "description": subject,
                 "image_size": {"width": size, "height": size},
                 "detail": PIXELLAB_DETAIL,
                 "shading": PIXELLAB_SHADING,
                 "no_background": True,
             },
-            timeout=PIXELLAB_TIMEOUT_SEC,
+            PIXELLAB_TIMEOUT_SEC,
+            "기본 그림",
         )
     except requests.RequestException as e:
         Helper.CustomPrint(f"❌ [sprite] 기본 그림 요청 실패: {type(e).__name__}: {e}")
@@ -312,21 +331,20 @@ def _cancel_job(headers, job_id):
         pass  # 취소 실패는 생성 횟수가 조금 더 나가는 것뿐이다
 
 
-def _sprite_frames(api_key, base_b64, action, frame_count):
-    """animate-with-text-v3 작업을 걸고 끝날 때까지 기다린다. 반환: (PNG 바이트 목록, None) 또는 (None, 안내문)."""
-    sleep, clock = time.sleep, time.monotonic  # 호출 때 찾는다 — 테스트가 바꿔 끼운다
-    headers = {"Authorization": f"Bearer {api_key}"}
+def _submit_animation(api_key, base_b64, action, frame_count):
+    """animate-with-text-v3 작업을 건다. 반환: (작업 번호, None) 또는 (None, 안내문)."""
     try:
-        response = requests.post(
+        response = _post_waiting_if_busy(
             PIXELLAB_ANIMATE_URL,
-            headers=headers,
-            json={
+            {"Authorization": f"Bearer {api_key}"},
+            {
                 "first_frame": {"type": "base64", "base64": base_b64, "format": "png"},
                 "action": action,
                 "frame_count": frame_count,
                 "no_background": True,
             },
-            timeout=60,
+            60,
+            "애니메이션",
         )
     except requests.RequestException as e:
         Helper.CustomPrint(f"❌ [sprite] 애니메이션 요청 실패: {type(e).__name__}: {e}")
@@ -334,11 +352,16 @@ def _sprite_frames(api_key, base_b64, action, frame_count):
     if response.status_code not in (200, 202):
         return None, _pixellab_http_error(response, "sprite")
     try:
-        job_id = response.json()["background_job_id"]
+        return response.json()["background_job_id"], None
     except (ValueError, KeyError, TypeError) as e:
         Helper.CustomPrint(f"❌ [sprite] 작업 번호 해석 실패 ({type(e).__name__}): {e}")
         return None, MSG_SPRITE_FAILED
 
+
+def _wait_frames(api_key, job_id):
+    """작업이 끝날 때까지 기다린다. 반환: (PNG 바이트 목록, None) 또는 (None, 안내문)."""
+    sleep, clock = time.sleep, time.monotonic  # 호출 때 찾는다 — 테스트가 바꿔 끼운다
+    headers = {"Authorization": f"Bearer {api_key}"}
     deadline = clock() + SPRITE_JOB_TIMEOUT_SEC
     while True:
         sleep(SPRITE_POLL_SEC)
@@ -348,6 +371,9 @@ def _sprite_frames(api_key, base_b64, action, frame_count):
             return None, MSG_SPRITE_TIMEOUT
         try:
             poll = requests.get(PIXELLAB_JOB_URL.format(job_id=job_id), headers=headers, timeout=30)
+            if poll.status_code == 404:  # 끝난 지 오래돼 정리됐거나 없는 작업
+                Helper.CustomPrint(f"❌ [sprite] 작업을 찾을 수 없음 ({job_id})")
+                return None, MSG_SPRITE_FAILED
             data = poll.json() if poll.status_code == 200 else {}
         except (requests.RequestException, ValueError) as e:
             Helper.CustomPrint(f"⚠️ [sprite] 작업 상태 확인 실패 — 다시 시도: {type(e).__name__}")
@@ -373,6 +399,64 @@ def _sprite_frames(api_key, base_b64, action, frame_count):
     usage = (data.get("last_response") or {}).get("billing_usage") or data.get("usage")
     Helper.CustomPrint(f"✅ [sprite] 프레임 {len(frames)}장 수신 (사용량 {usage})")
     return frames, None
+
+
+# ─── 진행 중인 애니메이션 기록 (봇 재시작 대비) ──────────────────────────
+# #애니는 3분 가까이 걸려 그사이 봇이 재시작되기 쉽다(설정 저장·업데이트·수동 재시작). 작업은 PixelLab
+# 서버에서 계속 돌므로 작업 번호를 saved/pending_anim.json 에 적어 두고, 다음 시작 때 이어받아 보낸다.
+# 기록은 결과를 보낼 준비가 끝나거나 실패가 확정될 때 지운다 — 프로세스가 죽으면 남는다.
+PENDING_FILE_NAME = "pending_anim.json"
+PENDING_MAX_AGE_SEC = 30 * 60
+_pending_lock = threading.Lock()
+
+
+def _pending_path():
+    return runtime_paths.SAVED_DIR / PENDING_FILE_NAME  # 호출 때 계산 — 테스트가 SAVED_DIR을 바꾼다
+
+
+def _read_pending():
+    try:
+        records = json.loads(_pending_path().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    return [r for r in records if isinstance(r, dict)] if isinstance(records, list) else []
+
+
+def _write_pending(records):
+    path = _pending_path()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(records, ensure_ascii=False, indent=1), encoding="utf-8")
+    except OSError as e:
+        Helper.CustomPrint(f"⚠️ [sprite] 진행 기록 저장 실패: {e}")
+
+
+def _remember_job(room, job_id, label):
+    with _pending_lock:
+        records = [r for r in _read_pending() if r.get("job_id") != job_id]
+        records.append({"room": room, "job_id": job_id, "label": label, "started": time.time()})
+        _write_pending(records)
+
+
+def _forget_job(job_id):
+    with _pending_lock:
+        records = _read_pending()
+        kept = [r for r in records if r.get("job_id") != job_id]
+        if len(kept) != len(records):
+            _write_pending(kept)
+
+
+def _finish_sprite(api_key, job_id, label):
+    """작업 결과 → ([(GIF 경로, "file"), (시트 경로, "file")], None) 또는 (None, 안내문)."""
+    frames, error = _wait_frames(api_key, job_id)
+    if error:
+        return None, error
+    try:
+        gif_path, sheet_path = build_sprite_files(frames, label)
+    except Exception as e:
+        Helper.CustomPrint(f"❌ [sprite] 파일 만들기 실패 ({type(e).__name__}): {e}")
+        return None, MSG_BAD_IMAGE
+    return [(gif_path, "file"), (sheet_path, "file")], None
 
 
 def build_sprite_files(frame_bytes, label):
@@ -413,8 +497,11 @@ def build_sprite_files(frame_bytes, label):
     return gif_path, sheet_path
 
 
-def generate_sprite(description):
-    """반환: ([(GIF 경로, "file"), (시트 경로, "file")], None) 또는 (None, 안내문)."""
+def generate_sprite(description, room=None):
+    """
+    반환: ([(GIF 경로, "file"), (시트 경로, "file")], None) 또는 (None, 안내문).
+    room을 주면 작업을 거는 순간부터 끝날 때까지 진행 기록을 남겨, 봇이 재시작돼도 이어받게 한다.
+    """
     api_key = _pixellab_key()
     if not api_key:
         return None, MSG_SPRITE_NEED_KEY
@@ -428,15 +515,56 @@ def generate_sprite(description):
     base_b64, error = _sprite_base_image(api_key, subject, size)
     if error:
         return None, error
-    frames, error = _sprite_frames(api_key, base_b64, action, frame_count)
+    job_id, error = _submit_animation(api_key, base_b64, action, frame_count)
     if error:
         return None, error
+    if room:
+        _remember_job(room, job_id, description)
     try:
-        gif_path, sheet_path = build_sprite_files(frames, description)
-    except Exception as e:
-        Helper.CustomPrint(f"❌ [sprite] 파일 만들기 실패 ({type(e).__name__}): {e}")
-        return None, MSG_BAD_IMAGE
-    return [(gif_path, "file"), (sheet_path, "file")], None
+        return _finish_sprite(api_key, job_id, description)
+    finally:
+        if room:
+            _forget_job(job_id)
+
+
+def resume_pending_anim():
+    """
+    봇 시작 때 호출: 지난 실행에서 끝나지 못한 #애니 작업을 이어받아 그 방으로 보낸다.
+    방이 없거나 너무 오래된 기록은 지운다. 반환: 이어받은 작업 수.
+    """
+    records = _read_pending()
+    if not records:
+        return 0
+    api_key = _pixellab_key()
+    resumed = 0
+    for record in records:
+        room, job_id = record.get("room"), record.get("job_id")
+        label = record.get("label") or "anim"
+        try:
+            age = time.time() - float(record.get("started", 0))
+        except (TypeError, ValueError):
+            age = PENDING_MAX_AGE_SEC + 1
+        if not (api_key and room and job_id) or age > PENDING_MAX_AGE_SEC or media_common._find_chat(room) is None:
+            Helper.CustomPrint(f"🗑️ [sprite] 이어받지 않는 지난 작업 정리: {room} / {job_id}")
+            _forget_job(job_id)
+            continue
+
+        def work(job_id=job_id, label=label):
+            try:
+                files, error = _finish_sprite(api_key, job_id, label)
+            finally:
+                _forget_job(job_id)
+            if error:
+                return error, "text"
+            Helper.CustomPrint(f"✅ [sprite] 이어받은 애니메이션 준비 완료: {files}")
+            return files, "batch"
+
+        Helper.CustomPrint(f"🔁 [{room}] 재시작 전에 요청된 애니메이션을 이어서 받습니다 ({job_id})")
+        if media_common.run_in_background(room, None, work) == (media_common.MSG_BUSY, "text"):
+            _forget_job(job_id)  # 같은 방 작업이 이미 돌고 있다 — 한 방에 하나만
+            continue
+        resumed += 1
+    return resumed
 
 
 def sprite(opentalk_name, chat_command, message):
@@ -450,7 +578,7 @@ def sprite(opentalk_name, chat_command, message):
         return MSG_SPRITE_NEED_KEY, "text"
 
     def work():
-        files, error = generate_sprite(description)
+        files, error = generate_sprite(description, room=opentalk_name)
         if error:
             return error, "text"
         Helper.CustomPrint(f"✅ [sprite] 스프라이트 준비 완료: {files}")

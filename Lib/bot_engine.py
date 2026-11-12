@@ -36,6 +36,8 @@ class BotEngineDependencies:
     stop_feather_monitoring: Callable[[], Any] = _noop
     close_log_file: Callable[[], Any] = _noop
     log: Callable[[str], Any] = _noop
+    # 방 준비가 끝난 뒤 한 번: 지난 실행에서 끝나지 못한 백그라운드 생성(#애니)을 이어받는다
+    resume_background_jobs: Callable[[], Any] = _noop
 
 
 # (조용한 시간(초) 이상이면, 이 간격(초)으로 확인) — 대화가 없으면 점점 천천히 확인해 PC 부담을
@@ -151,6 +153,10 @@ class BotEngine:
                 self._create_chat(room_name, dependencies)
 
             dependencies.set_global_chat_list(self.chats)
+            try:
+                dependencies.resume_background_jobs()
+            except Exception as exc:  # 이어받기 실패가 봇 시작을 막으면 안 된다
+                dependencies.log(f"⚠️ 지난 생성 작업 이어받기 실패: {exc}")
             self.feather_monitor = dependencies.start_feather_monitoring()
             if self.feather_monitor is None:
                 self._emit(
@@ -222,15 +228,17 @@ class BotEngine:
             stop_feather_monitoring=value("stop_feather_monitoring"),
             close_log_file=value("close_log_file"),
             log=value("log"),
+            resume_background_jobs=value("resume_background_jobs"),
         )
 
     @staticmethod
     def _load_default_dependencies() -> BotEngineDependencies:
         # Deliberately late: importing ChatProcess initializes Windows-only
         # automation dependencies and importing dataManager loads the INI.
-        from Lib import Helper, chat_process, dataManager, json_data_manager, log_monitor
+        from Lib import Helper, chat_process, dataManager, image_gen, json_data_manager, log_monitor
 
         return BotEngineDependencies(
+            resume_background_jobs=image_gen.resume_pending_anim,
             room_names=lambda: list(dataManager.kakao_opentalk_name_List),
             chat_factory=chat_process.ChatProcess,
             load_api_keys=json_data_manager.load_api_keys,

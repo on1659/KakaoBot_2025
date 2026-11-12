@@ -1047,3 +1047,92 @@ def test_sprite_settings_respect_api_limits(monkeypatch, size, frames, expected)
     monkeypatch.setenv("PIXELLAB_SPRITE_SIZE", size)
     monkeypatch.setenv("PIXELLAB_SPRITE_FRAMES", frames)
     assert image_gen._sprite_settings() == expected
+
+def test_anim_job_is_recorded_while_waiting_and_cleared_after(monkeypatch, tmp_path):
+    api = SpriteAPI(monkeypatch, tmp_path, job_states=("processing", "completed"))
+    seen = []
+    original_get = api.get
+
+    def get(url, **kwargs):
+        seen.append(image_gen._read_pending())
+        return original_get(url, **kwargs)
+
+    monkeypatch.setattr(image_gen.requests, "get", get)
+    files, error = image_gen.generate_sprite("fox", room="방")
+    assert error is None and len(files) == 2
+    assert seen[0] == [{"room": "방", "job_id": "job-1", "label": "fox", "started": seen[0][0]["started"]}]
+    assert image_gen._read_pending() == []  # 끝나면 지운다
+
+
+def test_anim_failure_also_clears_record(monkeypatch, tmp_path):
+    SpriteAPI(monkeypatch, tmp_path, job_states=("failed",))
+    assert image_gen.generate_sprite("fox", room="방") == (None, image_gen.MSG_SPRITE_FAILED)
+    assert image_gen._read_pending() == []
+
+
+class QueueChat:
+    def __init__(self, name):
+        self.chatroom_name = name
+        self.queued = []
+        self.done = threading.Event()
+
+    def add_message_to_queue(self, payload, kind="text"):
+        self.queued.append((payload, kind))
+        self.done.set()
+
+
+def test_resume_pending_anim_delivers_to_room(monkeypatch, tmp_path):
+    api = SpriteAPI(monkeypatch, tmp_path, job_states=("completed",), frames=4)
+    chat = QueueChat("방")
+    monkeypatch.setattr(log_monitor, "global_chat_list", [chat])
+    image_gen._remember_job("방", "job-1", "여우")
+    image_gen._remember_job("없는방", "job-2", "곰")
+    old = image_gen._read_pending() + [{"room": "방", "job_id": "job-3", "label": "x", "started": 0}]
+    image_gen._write_pending(old)
+
+    assert image_gen.resume_pending_anim() == 1
+    assert chat.done.wait(5)
+    payload, kind = chat.queued[0]
+    assert kind == "batch" and [k for _, k in payload] == ["file", "file"]
+    assert api.posts == []  # 새로 만들지 않고 받기만 한다
+    for _ in range(50):
+        if image_gen._read_pending() == []:
+            break
+        time.sleep(0.05)
+    assert image_gen._read_pending() == []  # 이어받은 것·방 없는 것·오래된 것 모두 정리
+
+
+def test_resume_without_records_does_nothing(monkeypatch, tmp_path):
+    from Lib import runtime_paths
+
+    monkeypatch.setattr(runtime_paths, "SAVED_DIR", tmp_path)
+    assert image_gen.resume_pending_anim() == 0
+
+
+def test_anim_waits_when_pixellab_is_busy(monkeypatch, tmp_path):
+    api = SpriteAPI(monkeypatch, tmp_path)
+    replies = [FakeResponse(429, payload={"detail": "Too many concurrent jobs"})] * 2
+    original_post = api.post
+
+    def post(url, **kwargs):
+        if url == image_gen.PIXELLAB_ANIMATE_URL and replies:
+            return replies.pop()
+        return original_post(url, **kwargs)
+
+    monkeypatch.setattr(image_gen.requests, "post", post)
+    payload, kind = image_gen.sprite("방", "#애니", "fox")
+    assert kind == "batch" and replies == []
+
+
+def test_anim_gives_up_when_busy_too_long(monkeypatch, tmp_path):
+    SpriteAPI(monkeypatch, tmp_path)
+    ticks = iter(range(0, 100_000, 60))
+    monkeypatch.setattr(image_gen.time, "monotonic", lambda: next(ticks))
+    monkeypatch.setattr(image_gen.requests, "post", lambda *a, **k: FakeResponse(429, payload={}))
+    assert image_gen.sprite("방", "#애니", "fox") == (image_gen.MSG_PIXEL_RATE, "text")
+
+
+def test_anim_job_not_found(monkeypatch, tmp_path):
+    SpriteAPI(monkeypatch, tmp_path)
+    monkeypatch.setattr(image_gen.requests, "get", lambda *a, **k: FakeResponse(404, payload={}))
+    assert image_gen.sprite("방", "#애니", "fox") == (image_gen.MSG_SPRITE_FAILED, "text")

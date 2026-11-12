@@ -84,6 +84,7 @@ def test_engine_lifecycle_and_cleanup(no_runtime_layout):
         start_feather_monitoring=lambda: (calls.append("start_monitor"), monitor)[1],
         stop_feather_monitoring=lambda: calls.append("stop_monitor"),
         close_log_file=lambda: calls.append("close_log"),
+        resume_background_jobs=lambda: calls.append("resume"),
     )
     engine = BotEngine(event_callback=events.append, dependencies=dependencies)
 
@@ -92,6 +93,8 @@ def test_engine_lifecycle_and_cleanup(no_runtime_layout):
     assert engine.state == "stopped"
     assert calls[0] == "load_keys"
     assert ("global", ["room-a", "room-b"]) in calls
+    # 방 목록을 등록한 뒤에 이어받아야 결과를 보낼 방을 찾을 수 있다
+    assert calls.index("resume") == calls.index(("global", ["room-a", "room-b"])) + 1
     assert "start_monitor" in calls
     assert "stop_monitor" in calls
     assert ("global", []) in calls
