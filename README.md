@@ -177,6 +177,12 @@ YouTube & 네이버 지도 (youtube.py, convert_naver_map.py)
 - `#pxicel`은 `PIXELLAB_API_KEY`가 있으면 Aside 대신 PixelLab API를 직접 호출 (1분 이내, 선택 `PIXELLAB_IMAGE_SIZE`).
   PixelLab은 영어 묘사만 알아들으므로 요청을 `GEMINI_API_KEY`로 '그림 묘사'로 다시 써서 보냄
   (예: "만렙토끼그려봐" → "A legendary rabbit, glowing with an aura, ..."). 다시 쓰기에 실패하면 생성하지 않고 안내
+- `#스프라이트 (설명)` (`#sprite`도 동일): 움직이는 픽셀아트. `PIXELLAB_API_KEY` 필요 (Aside 경로 없음)
+  - 배경 없는 그림을 만든 뒤(생성 1회) PixelLab 애니메이션 API로 프레임을 받아(128px·8프레임 2회) 2~4분 걸림
+  - 움직이는 GIF(채팅에서 재생)와 투명 배경 스프라이트 시트 PNG(격자 배치) 두 파일을 보냄
+  - 요청을 `GEMINI_API_KEY`로 '모습'과 '동작'으로 나눔 (예: "검 휘두르는 여우 기사" → 여우 기사 / swinging a sword).
+    동작이 없으면 숨쉬는 대기 동작. 선택 `PIXELLAB_SPRITE_SIZE`(32~192, 기본 128), `PIXELLAB_SPRITE_FRAMES`(4~16 짝수, 기본 8)
+  - 권한은 `#픽셀`과 같은 "픽셀아트" 항목을 따름
 - `#imagegen`은 Aside CLI가 없는 PC에서만 `OPENAI_API_KEY`로 직접 호출
   (선택 `OPENAI_IMAGE_MODEL`, `OPENAI_IMAGE_QUALITY`, `OPENAI_IMAGE_SIZE`)
 - 생성이 오래 걸려 "그리는 중" 안내를 먼저 보내고, 완성되면 이미지를 전송. Aside 작업은 한 번에 하나만 처리

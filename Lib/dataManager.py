@@ -152,6 +152,8 @@ chat_command_Map = [
     ['#픽셀', "#픽셀 (설명) \n 픽셀아트를 그려서 보내줍니다. 예) #픽셀 검을 든 기사", image_gen.pixel],
     ['#pxicel', "None", image_gen.pixel],   # 예전 이름 — 계속 동작하지만 도움말에는 안 나온다
     ['#pixel', "None", image_gen.pixel],
+    ['#스프라이트', "#스프라이트 (설명) \n 움직이는 픽셀아트(GIF)와 스프라이트 시트를 보내줍니다. 예) #스프라이트 검 휘두르는 여우 기사", image_gen.sprite],
+    ['#sprite', "None", image_gen.sprite],
     ['#지피티이미지', "#지피티이미지 (설명) \n AI가 그림을 그려서 보내줍니다. 예) #지피티이미지 우주에서 낚시하는 고양이", image_gen.imagegen],
     ['#이미지피티', "None", image_gen.imagegen],   # 별칭 — 동작하지만 도움말에는 안 나온다
     ['#imagegen', "None", image_gen.imagegen],     # 예전 이름

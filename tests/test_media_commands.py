@@ -20,7 +20,7 @@ KEY_ENV_NAMES = (
     "ELEVENLABS_API_KEY", "ELEVENLABSI_API_KEY", "ELEVEN_API_KEY", "XI_API_KEY",
     "ELEVENLABS_VOICE_ID", "ELEVENLABS_TTS_MODEL", "ELEVENLABS_BGM_SECONDS", "ELEVENLABS_MUSIC_MODEL","ELEVENLABS_SEND_AS",
     "PIXELLAB_API_KEY", "PIXELLAB_API_TOKEN", "PIXELLAB_SECRET", "PIXEL_LAB_API_KEY",
-    "PIXELLAB_IMAGE_SIZE", "OPENAI_API_KEY", "OPENAI_IMAGE_MODEL",
+    "PIXELLAB_IMAGE_SIZE", "PIXELLAB_SPRITE_SIZE", "PIXELLAB_SPRITE_FRAMES", "OPENAI_API_KEY", "OPENAI_IMAGE_MODEL",
     "OPENAI_IMAGE_QUALITY", "OPENAI_IMAGE_SIZE", "MINECRAFT_SERVER",
     "ASIDE_CLI_PATH", "ASIDE_DATA_DIR", "GEMINI_API_KEY", "GEMINI_TRANSLATE_MODEL",
 )
@@ -77,6 +77,8 @@ def dib_size(dib):
         ("#이미지피티 고양이", "#이미지피티"),
         ("#지피티이미지 고양이", "#지피티이미지"),
         ("#마크", "#마크"),
+        ("#스프라이트 여우", "#스프라이트"),
+        ("#sprite fox", "#sprite"),
     ],
 )
 def test_new_commands_are_registered(message, expected):
@@ -112,6 +114,16 @@ def test_send_routes_file_payload(monkeypatch):
     monkeypatch.setattr(cp, "send_file", lambda p: captured.append(("file", p)), raising=False)
     cp.send("C:/a.mp3", "file")
     assert captured == [("file", "C:/a.mp3")]
+
+
+def test_send_batch_sends_each_item_in_order(monkeypatch):
+    captured = []
+    cp = _bare_chat(monkeypatch, captured)
+    monkeypatch.setattr(cp, "send_file", lambda p: captured.append(("file", p)), raising=False)
+    monkeypatch.setattr(chat_process.time, "sleep", lambda s: None)
+    cp.send([("C:/a.gif", "file"), ("C:/b.png", "file"), ("끝", "text")], "batch")
+    assert captured == [("file", "C:/a.gif"), ("file", "C:/b.png"), "끝"]
+    assert describe_payload([("C:/a.gif", "file")], "batch") == "<묶음 <파일 a.gif>>"
 
 
 def test_send_file_missing_file_falls_back_to_text(monkeypatch, tmp_path):
@@ -926,3 +938,112 @@ def test_wrap_limits_lines_and_adds_ellipsis():
     assert all(font.getlength(line) <= 400 for line in lines)
     assert audio_video._wrap("짧은 글", font, 400, 4) == ["짧은 글"]
     assert audio_video._wrap("", font, 400, 4) == []
+
+
+# ─── 스프라이트 ──────────────────────────────────────────────────────────
+
+def _frame_b64(color):
+    return base64.b64encode(png_bytes((64, 64), color)).decode()
+
+
+class SpriteAPI:
+    """pixflux → animate-with-text-v3 → background-jobs 흐름을 흉내 낸다."""
+
+    def __init__(self, monkeypatch, tmp_path, job_states=("processing", "completed"), frames=3):
+        from Lib import runtime_paths
+
+        monkeypatch.setattr(runtime_paths, "SAVED_DIR", tmp_path)
+        monkeypatch.setattr(image_gen.time, "sleep", lambda s: None)
+        monkeypatch.setenv("PIXELLAB_API_KEY", "token")
+        self.posts, self.gets, self.deletes = [], [], []
+        self.states = list(job_states)
+        self.frames = frames
+        monkeypatch.setattr(image_gen.requests, "post", self.post)
+        monkeypatch.setattr(image_gen.requests, "get", self.get)
+        monkeypatch.setattr(image_gen.requests, "delete", lambda url, **k: self.deletes.append(url))
+
+    def post(self, url, **kwargs):
+        self.posts.append((url, kwargs))
+        if url.endswith("generate-image-pixflux"):
+            return FakeResponse(200, payload={"image": {"base64": _frame_b64((255, 0, 0, 255))}})
+        return FakeResponse(200, payload={"background_job_id": "job-1", "status": "processing"})
+
+    def get(self, url, **kwargs):
+        self.gets.append(url)
+        state = self.states.pop(0) if len(self.states) > 1 else self.states[0]
+        last = {"status": state}
+        if state == "completed":
+            colors = [(255, 0, 0, 255), (0, 255, 0, 255), (0, 0, 255, 128)]
+            last["images"] = [
+                {"type": "base64", "base64": _frame_b64(colors[i % 3]), "format": "png"}
+                for i in range(self.frames)
+            ]
+        return FakeResponse(200, payload={"id": "job-1", "status": state, "last_response": last})
+
+
+def test_sprite_makes_gif_and_sheet(monkeypatch, tmp_path):
+    api = SpriteAPI(monkeypatch, tmp_path, frames=9)
+    payload, kind = image_gen.sprite("방", "#sprite", "a fox knight walking")
+    assert kind == "batch"
+    (gif_path, gif_kind), (sheet_path, sheet_kind) = payload
+    assert gif_kind == sheet_kind == "file"
+
+    gif = Image.open(gif_path)
+    assert gif.format == "GIF" and gif.n_frames == 9 and gif.size == (384, 384)
+    sheet = Image.open(sheet_path)
+    assert sheet.mode == "RGBA" and sheet.size == (3 * 64 * 2, 3 * 64 * 2)  # 9장 → 3×3 격자, 2배
+
+    (base_url, base), (anim_url, anim) = api.posts
+    assert base["json"]["no_background"] is True
+    assert base["json"]["image_size"] == {"width": 128, "height": 128}
+    assert base["json"]["description"] == "a fox knight walking"
+    assert anim_url == image_gen.PIXELLAB_ANIMATE_URL
+    assert anim["json"]["action"] == image_gen.SPRITE_DEFAULT_ACTION  # 번역 서버 없으면 기본 동작
+    assert anim["json"]["frame_count"] == 8
+    assert anim["json"]["first_frame"]["base64"] == _frame_b64((255, 0, 0, 255))
+    assert api.gets == ["https://api.pixellab.ai/v2/background-jobs/job-1"] * 2
+
+
+def test_sprite_splits_korean_request_into_subject_and_action(monkeypatch, tmp_path):
+    api = SpriteAPI(monkeypatch, tmp_path)
+    monkeypatch.setenv("GEMINI_API_KEY", "g-key")
+    seen = _fake_gemini(monkeypatch, reply="an orange fox knight with a sword ||| swinging a sword")
+    payload, kind = image_gen.sprite("방", "#스프라이트", "검 휘두르는 여우 기사")
+    assert kind == "batch"
+    assert seen[0][1].endswith("검 휘두르는 여우 기사")
+    assert api.posts[0][1]["json"]["description"] == "an orange fox knight with a sword"
+    assert api.posts[1][1]["json"]["action"] == "swinging a sword"
+
+
+def test_sprite_refuses_untranslated_korean(monkeypatch, tmp_path):
+    api = SpriteAPI(monkeypatch, tmp_path)
+    assert image_gen.sprite("방", "#스프라이트", "여우 기사") == (image_gen.MSG_PIXEL_NEED_ENGLISH, "text")
+    assert api.posts == []
+
+
+def test_sprite_failed_job(monkeypatch, tmp_path):
+    SpriteAPI(monkeypatch, tmp_path, job_states=("processing", "failed"))
+    assert image_gen.sprite("방", "#sprite", "fox") == (image_gen.MSG_SPRITE_FAILED, "text")
+
+
+def test_sprite_times_out_and_cancels_job(monkeypatch, tmp_path):
+    api = SpriteAPI(monkeypatch, tmp_path, job_states=("processing",))
+    ticks = iter(range(0, 10_000, 100))
+    monkeypatch.setattr(image_gen.time, "monotonic", lambda: next(ticks))
+    assert image_gen.sprite("방", "#sprite", "fox") == (image_gen.MSG_SPRITE_TIMEOUT, "text")
+    assert api.deletes == ["https://api.pixellab.ai/v2/background-jobs/job-1"]
+
+
+def test_sprite_usage_and_missing_key():
+    assert image_gen.sprite("방", "#스프라이트", " ") == (image_gen.MSG_SPRITE_USAGE, "text")
+    assert image_gen.sprite("방", "#스프라이트", "여우") == (image_gen.MSG_SPRITE_NEED_KEY, "text")
+
+
+@pytest.mark.parametrize(
+    "size, frames, expected",
+    [("", "", (128, 8)), ("192", "16", (192, 14)), ("400", "7", (192, 6)), ("64", "3", (64, 4))],
+)
+def test_sprite_settings_respect_api_limits(monkeypatch, size, frames, expected):
+    monkeypatch.setenv("PIXELLAB_SPRITE_SIZE", size)
+    monkeypatch.setenv("PIXELLAB_SPRITE_FRAMES", frames)
+    assert image_gen._sprite_settings() == expected

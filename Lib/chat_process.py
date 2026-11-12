@@ -40,6 +40,8 @@ def describe_payload(payload, message_type="text"):
         return f"<이미지 {len(payload) if payload else 0} bytes>"
     if message_type == "file":
         return f"<파일 {os.path.basename(str(payload))}>"
+    if message_type == "batch":
+        return "<묶음 " + ", ".join(describe_payload(p, t) for p, t in payload or []) + ">"
     return f"{str(payload)[:30]}..."
 
 
@@ -689,10 +691,16 @@ class ChatProcess:
         Args:
             payload: type="text"면 문자열, type="image"면 DIB 바이트
                      (BMP 인코딩에서 14바이트 파일 헤더를 제거한 것 — insta.GetData 참조),
-                     type="file"이면 보낼 파일의 경로 (예: #tts가 만든 mp3)
-            type: "text" | "image" | "file"
+                     type="file"이면 보낼 파일의 경로 (예: #tts가 만든 mp3),
+                     type="batch"면 [(payload, type), ...] — 차례로 보낸다 (예: #스프라이트의 GIF + 시트)
+            type: "text" | "image" | "file" | "batch"
         """
-        if type == "text":
+        if type == "batch":
+            for index, (item, item_type) in enumerate(payload or []):
+                if index:
+                    time.sleep(0.5)  # 앞 전송의 창이 닫힐 틈을 준다
+                self.send(item, item_type)
+        elif type == "text":
             self.sendtext(self.chatroom_name, self.chatroomHwnd, payload)
         elif type == "image":
             self.send_image(payload)
