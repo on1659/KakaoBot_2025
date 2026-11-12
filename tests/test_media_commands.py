@@ -639,7 +639,7 @@ def _fake_gemini(monkeypatch, reply=None, error=None):
             return type("R", (), {"text": reply})()
 
     class FakeClient:
-        def __init__(self, api_key):
+        def __init__(self, api_key, **options):
             self.models = FakeModels()
 
     monkeypatch.setattr(genai, "Client", FakeClient)
@@ -722,7 +722,7 @@ def test_translation_falls_back_to_next_model(monkeypatch):
             return type("R", (), {"text": "a wizard by a campfire"})()
 
     class FakeClient:
-        def __init__(self, api_key):
+        def __init__(self, api_key, **options):
             self.models = FakeModels()
 
     monkeypatch.setattr(genai, "Client", FakeClient)

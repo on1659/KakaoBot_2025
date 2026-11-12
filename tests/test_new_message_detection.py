@@ -21,8 +21,18 @@ def now_time(minutes_ago=0):
     return f"{marker} {hour}:{moment.minute:02d}"
 
 
-def chat_text(messages, date_line="2026년 11월 10일 화요일"):
-    """[(이름, 시각, 내용)] → 카카오톡에서 복사한 것 같은 글."""
+TODAY = object()  # date_line 기본값: 테스트를 돌리는 날의 날짜 줄
+
+
+def today_line():
+    return datetime.datetime.now().strftime("%Y년 %m월 %d일 화요일")
+
+
+def chat_text(messages, date_line=TODAY):
+    """[(이름, 시각, 내용)] → 카카오톡에서 복사한 것 같은 글.
+    날짜 줄을 고정해 두면 날이 바뀐 뒤 모든 명령이 '오래된 명령'으로 걸러진다 — 기본은 오늘 날짜."""
+    if date_line is TODAY:
+        date_line = today_line()
     lines = [date_line] if date_line else []
     lines += [f"[{name}] [{time}] {text}" for name, time, text in messages]
     return "\r\n".join(lines)

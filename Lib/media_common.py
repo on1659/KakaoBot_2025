@@ -13,6 +13,7 @@
 import os
 import re
 import threading
+import time
 from datetime import datetime
 from io import BytesIO
 
@@ -73,8 +74,20 @@ def env_int(name, default, minimum, maximum):
     return max(minimum, min(maximum, value))
 
 
-# 한 모델이 바쁘면(503) 다음 모델로 넘어간다 — 번역이 실패하면 한글이 그대로 넘어가 엉뚱한 그림이 나온다
-GEMINI_MODELS = ("gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash")
+# 한 모델이 바쁘면(503) 다음 모델로 넘어간다 — 번역이 실패하면 한글이 그대로 넘어가 엉뚱한 그림이 나온다.
+# 2026-11-11에 이 키로 실제 응답을 확인한 모델만 넣었다. 그 전날 넣었던 예비 모델 둘
+# (gemini-2.5-flash-lite, gemini-2.0-flash)은 이미 종료돼 404였고, 주 모델이 503을 내자 전부 실패했다.
+# 모델은 계속 종료되므로, 마지막에 '-latest' 별칭을 두고 실패가 반복되면 이 목록부터 점검한다.
+GEMINI_MODELS = (
+    "gemini-2.5-flash",
+    "gemini-3.1-flash-lite",
+    "gemini-3.5-flash",
+    "gemini-3.6-flash",
+    "gemini-3.5-flash-lite",
+    "gemini-flash-lite-latest",
+)
+GEMINI_CALL_TIMEOUT_MS = 12000   # 호출 하나가 멈춰 있어도 다음 모델로 넘어가게 한다
+GEMINI_TOTAL_BUDGET_SEC = 40     # 모델을 바꿔 가며 시도하는 전체 시간 한도
 
 _TRANSLATE_INSTRUCTION = (
     "Translate the following text into concise English. "
@@ -103,15 +116,23 @@ def _ask_gemini(instruction, text):
         return None
     try:
         from google import genai
+        from google.genai import types
 
-        client = genai.Client(api_key=api_key)  # 변수에 잡아 둬야 한다 — 임시 객체면 요청 전에 닫힌다
+        # client는 변수에 잡아 둬야 한다 — 임시 객체면 요청 전에 닫힌다
+        client = genai.Client(
+            api_key=api_key, http_options=types.HttpOptions(timeout=GEMINI_CALL_TIMEOUT_MS)
+        )
     except Exception as e:
         Helper.CustomPrint(f"⚠️ Gemini 준비 실패 ({type(e).__name__}): {e}")
         return None
 
     models = [env_text("GEMINI_TRANSLATE_MODEL", GEMINI_MODELS[0])]
     models += [model for model in GEMINI_MODELS if model not in models]
+    deadline = time.monotonic() + GEMINI_TOTAL_BUDGET_SEC
     for model in models:
+        if time.monotonic() > deadline:
+            Helper.CustomPrint("⚠️ 설명 번역 시간 한도 초과 — 남은 모델은 시도하지 않음")
+            break
         try:
             response = client.models.generate_content(model=model, contents=instruction + text)
             answer = " ".join((response.text or "").split())
