@@ -12,7 +12,7 @@ from io import BytesIO
 import pytest
 from PIL import Image
 
-from Lib import aside_agent, audio_video, chat_process, dataManager, elevenlabs_api, image_gen, media_common
+from Lib import aside_agent, audio_video, chat_process, dataManager, easy_pixel, elevenlabs_api, image_gen, media_common
 from Lib import log_monitor, minecraft_status
 from Lib.chat_process import ChatProcess, describe_payload, match_command
 
@@ -22,7 +22,7 @@ KEY_ENV_NAMES = (
     "PIXELLAB_API_KEY", "PIXELLAB_API_TOKEN", "PIXELLAB_SECRET", "PIXEL_LAB_API_KEY",
     "PIXELLAB_IMAGE_SIZE", "PIXELLAB_SPRITE_SIZE", "PIXELLAB_SPRITE_FRAMES", "OPENAI_API_KEY", "OPENAI_IMAGE_MODEL",
     "OPENAI_IMAGE_QUALITY", "OPENAI_IMAGE_SIZE", "MINECRAFT_SERVER",
-    "ASIDE_CLI_PATH", "ASIDE_DATA_DIR", "GEMINI_API_KEY", "GEMINI_TRANSLATE_MODEL",
+    "ASIDE_CLI_PATH", "ASIDE_DATA_DIR", "GEMINI_API_KEY", "GEMINI_TRANSLATE_MODEL", "EASYPIXEL_ASIDE_MODEL",
 )
 
 
@@ -79,6 +79,8 @@ def dib_size(dib):
         ("#마크", "#마크"),
         ("#애니 여우", "#애니"),
         ("#sprite fox", "#sprite"),
+        ("#이지픽셀 고양이", "#이지픽셀"),
+        ("#easypixel cat", "#easypixel"),
     ],
 )
 def test_new_commands_are_registered(message, expected):
@@ -1136,3 +1138,116 @@ def test_anim_job_not_found(monkeypatch, tmp_path):
     SpriteAPI(monkeypatch, tmp_path)
     monkeypatch.setattr(image_gen.requests, "get", lambda *a, **k: FakeResponse(404, payload={}))
     assert image_gen.sprite("방", "#애니", "fox") == (image_gen.MSG_SPRITE_FAILED, "text")
+
+# ─── #이지픽셀 ───────────────────────────────────────────────────────────
+
+GOOD_PLAN = json.dumps({
+    "description": "sad gray cat sitting by a rainy window, blue night palette, soft light",
+    "outline": "selective outline", "shading": "medium shading", "detail": "highly detailed",
+    "view": "side", "direction": "south-west", "no_background": False, "canvas": "wide",
+    "summary_ko": "비 오는 창가의 우울한 고양이",
+})
+
+
+def _pixflux_ok(calls):
+    def fake_post(url, **kwargs):
+        calls.append((url, kwargs))
+        encoded = base64.b64encode(png_bytes((240, 160))).decode()
+        return FakeResponse(200, payload={"image": {"base64": encoded}})
+    return fake_post
+
+
+def test_easy_pixel_refines_with_aside_and_sends_image_then_prompt(monkeypatch):
+    monkeypatch.setenv("PIXELLAB_API_KEY", "token")
+    monkeypatch.setattr(aside_agent, "find_cli", lambda: "aside.exe")
+    asked = []
+
+    def fake_request_text(prompt, timeout_sec, effort=None, model=None):
+        asked.append(prompt)
+        return "```json\n" + GOOD_PLAN + "\n```", None
+
+    monkeypatch.setattr(aside_agent, "request_text", fake_request_text)
+    calls = []
+    monkeypatch.setattr(image_gen.requests, "post", _pixflux_ok(calls))
+
+    items, kind = easy_pixel.easy_pixel("방", "#이지픽셀", "비오는날 우울한 고양이")
+    assert kind == "batch" and asked[0].endswith("<request>비오는날 우울한 고양이</request>")
+    (text, first), (dib, second) = items   # 방이 없으면 프롬프트 → 그림 순서로 한 번에 돌려준다
+    assert first == "text" and second == "image" and dib_size(dib)[0] >= 240
+    assert easy_pixel.MSG_DRAWING in text
+    assert "비 오는 창가의 우울한 고양이" in text and "sad gray cat" in text
+    assert calls[0][1]["json"] == {
+        "description": "sad gray cat sitting by a rainy window, blue night palette, soft light",
+        "image_size": {"width": 240, "height": 160},
+        "outline": "selective outline", "shading": "medium shading", "detail": "highly detailed",
+        "view": "side", "direction": "south-west",
+    }
+
+
+def test_easy_pixel_falls_back_to_gemini_and_drops_bad_options(monkeypatch):
+    monkeypatch.setenv("PIXELLAB_API_KEY", "token")
+    monkeypatch.setenv("GEMINI_API_KEY", "g")
+    monkeypatch.setattr(easy_pixel, "_ask_aside", lambda text: None)
+    gemini_answer = 'json: {"description": "tiny red dragon icon", "outline": "thick", "view": "side", ' \
+                    '"no_background": true, "canvas": "huge"}'
+    monkeypatch.setattr(media_common, "_ask_gemini", lambda instruction, text: gemini_answer)
+    calls = []
+    monkeypatch.setattr(image_gen.requests, "post", _pixflux_ok(calls))
+
+    items, kind = easy_pixel.easy_pixel("방", "#easypixel", "용")
+    assert kind == "batch" and "(Gemini)" in items[0][0]
+    assert calls[0][1]["json"] == {
+        "description": "tiny red dragon icon",
+        "image_size": {"width": 192, "height": 192},
+        "view": "side",
+        "detail": image_gen.PIXELLAB_DETAIL, "shading": image_gen.PIXELLAB_SHADING,
+        "no_background": True,
+    }
+
+
+def test_easy_pixel_does_not_spend_pixellab_when_prompt_fails(monkeypatch):
+    monkeypatch.setenv("PIXELLAB_API_KEY", "token")
+    monkeypatch.setattr(aside_agent, "find_cli", lambda: "aside.exe")
+    monkeypatch.setattr(easy_pixel, "_ask_aside", lambda text: '{"description": "한글만 남은 묘사"}')
+    monkeypatch.setattr(media_common, "_ask_gemini", lambda instruction, text: "not json")
+    monkeypatch.setattr(image_gen.requests, "post", lambda *a, **k: pytest.fail("PixelLab 호출됨"))
+    assert easy_pixel.easy_pixel("방", "#이지픽셀", "고양이") == (easy_pixel.MSG_PROMPT_FAILED, "text")
+
+
+def test_easy_pixel_guidance_without_text_or_keys(monkeypatch):
+    assert easy_pixel.easy_pixel("방", "#이지픽셀", "") == (easy_pixel.MSG_USAGE, "text")
+    assert easy_pixel.easy_pixel("방", "#이지픽셀", "고양이") == (easy_pixel.MSG_NEED_PIXELLAB, "text")
+    monkeypatch.setenv("PIXELLAB_API_KEY", "token")
+    assert easy_pixel.easy_pixel("방", "#이지픽셀", "고양이") == (easy_pixel.MSG_NEED_LLM, "text")
+
+
+def test_aside_request_text_returns_answer(monkeypatch):
+    monkeypatch.setattr(aside_agent, "find_cli", lambda: "aside.exe")
+    seen = []
+
+    class Done:
+        returncode = 0
+        stdout = json.dumps({"session": {"id": "s1"}, "outcome": "completed", "answer": "{\"a\": 1}"}).encode()
+        stderr = b""
+
+    monkeypatch.setattr(aside_agent, "_run_cli", lambda args, timeout: seen.append(args) or Done())
+    assert aside_agent.request_text("hi", 60, effort="low", model="m") == ('{"a": 1}', None)
+    assert seen[0] == ["aside.exe", "exec", "--json", "--timeout", "60s", "--effort", "low", "--model", "m", "hi"]
+
+
+def test_easy_pixel_in_room_reports_prompt_before_image(monkeypatch):
+    monkeypatch.setenv("PIXELLAB_API_KEY", "token")
+    monkeypatch.setattr(aside_agent, "find_cli", lambda: "aside.exe")
+    monkeypatch.setattr(easy_pixel, "_ask_aside", lambda text: GOOD_PLAN)
+    monkeypatch.setattr(image_gen.requests, "post", _pixflux_ok([]))
+    chat = FakeChat("방")
+    monkeypatch.setattr(log_monitor, "global_chat_list", [chat])
+
+    assert easy_pixel.easy_pixel("방", "#이지픽셀", "고양이") == (easy_pixel.MSG_ACK, "text")
+    for _ in range(500):
+        if len(chat.queued) >= 2:
+            break
+        time.sleep(0.01)
+    (report, first), (dib, second) = chat.queued
+    assert first == "text" and "sad gray cat" in report and easy_pixel.MSG_DRAWING in report
+    assert second == "image" and isinstance(dib, bytes)

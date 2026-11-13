@@ -138,20 +138,23 @@ def _image_from_answer(answer, started_at):
         return None, MSG_BAD_IMAGE
 
 
-def request_image(prompt, timeout_sec, effort=None):
+def _exec(prompt, timeout_sec, effort=None, model=None):
     """
-    Aside 에이전트에게 prompt를 보내고 결과 이미지 바이트를 받는다.
-    반환: (이미지 바이트, None) 또는 (None, 안내문).
+    Aside CLI로 요청 하나를 끝까지 돌린다 (한 번에 하나).
+    반환: (답변 문자열, None, 시작 시각) 또는 (None, 안내문, 시작 시각).
     """
+    started_at = time.time()
     cli = find_cli()
     if not cli:
-        return None, MSG_NO_CLI
+        return None, MSG_NO_CLI, started_at
     if not _lock.acquire(blocking=False):
-        return None, MSG_BUSY
+        return None, MSG_BUSY, started_at
     try:
         arguments = [cli, "exec", "--json", "--timeout", f"{int(timeout_sec)}s"]
         if effort:
             arguments += ["--effort", effort]
+        if model:
+            arguments += ["--model", model]
         arguments.append(prompt)
 
         started_at = time.time()
@@ -160,10 +163,10 @@ def request_image(prompt, timeout_sec, effort=None):
         except subprocess.TimeoutExpired as e:
             Helper.CustomPrint("❌ [aside] CLI가 응답하지 않아 중단했습니다.")
             _stop_session(cli, _session_id(_parse_result(e.stdout)))
-            return None, MSG_TIMEOUT
+            return None, MSG_TIMEOUT, started_at
         except OSError as e:
             Helper.CustomPrint(f"❌ [aside] CLI 실행 실패: {e}")
-            return None, MSG_FAILED
+            return None, MSG_FAILED, started_at
 
         result = _parse_result(completed.stdout)
         elapsed = time.time() - started_at
@@ -175,18 +178,36 @@ def request_image(prompt, timeout_sec, effort=None):
             )
             if elapsed >= timeout_sec - 1:
                 _stop_session(cli, _session_id(result))
-                return None, MSG_TIMEOUT
-            return None, MSG_FAILED
-
-        answer = str(result.get("answer") or "")
-        error = _ERROR_LINE.search(answer)
-        if error and not _PATH_LINE.search(answer):
-            Helper.CustomPrint(f"❌ [aside] 에이전트가 오류로 답함: {answer[:200]}")
-            return None, ERROR_MESSAGES.get(error.group(1), MSG_FAILED)
-
-        image, message = _image_from_answer(answer, started_at)
-        if image is not None:
-            Helper.CustomPrint(f"✅ [aside] 그림 수신 ({len(image)} bytes, {elapsed:.0f}s)")
-        return image, message
+                return None, MSG_TIMEOUT, started_at
+            return None, MSG_FAILED, started_at
+        return str(result.get("answer") or ""), None, started_at
     finally:
         _lock.release()
+
+
+def request_text(prompt, timeout_sec, effort=None, model=None):
+    """Aside 에이전트에게 prompt를 보내고 글 답변을 받는다. 반환: (답변, None) 또는 (None, 안내문)."""
+    answer, error, started_at = _exec(prompt, timeout_sec, effort=effort, model=model)
+    if answer is not None:
+        Helper.CustomPrint(f"✅ [aside] 답변 수신 ({len(answer)}자, {time.time() - started_at:.0f}s)")
+    return answer, error
+
+
+def request_image(prompt, timeout_sec, effort=None):
+    """
+    Aside 에이전트에게 prompt를 보내고 결과 이미지 바이트를 받는다.
+    반환: (이미지 바이트, None) 또는 (None, 안내문).
+    """
+    answer, failure, started_at = _exec(prompt, timeout_sec, effort=effort)
+    if failure:
+        return None, failure
+
+    error = _ERROR_LINE.search(answer)
+    if error and not _PATH_LINE.search(answer):
+        Helper.CustomPrint(f"❌ [aside] 에이전트가 오류로 답함: {answer[:200]}")
+        return None, ERROR_MESSAGES.get(error.group(1), MSG_FAILED)
+
+    image, message = _image_from_answer(answer, started_at)
+    if image is not None:
+        Helper.CustomPrint(f"✅ [aside] 그림 수신 ({len(image)} bytes, {time.time() - started_at:.0f}s)")
+    return image, message

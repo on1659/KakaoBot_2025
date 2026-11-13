@@ -142,16 +142,24 @@ def generate_pixel_art(description):
         # 다시 쓰기에 실패해 한글이 남았다 — 이대로 보내면 요청과 무관한 그림이 나오고 생성 횟수만 쓴다
         Helper.CustomPrint("❌ [pixellab] 설명을 영어로 바꾸지 못해 생성하지 않음")
         return None, MSG_PIXEL_NEED_ENGLISH
+    return request_pixflux({
+        "description": description,
+        "image_size": {"width": size, "height": size},
+        "detail": PIXELLAB_DETAIL,
+        "shading": PIXELLAB_SHADING,
+    })
+
+
+def request_pixflux(payload):
+    """완성된 요청(설명·옵션)을 PixelLab pixflux로 보낸다. 반환: (DIB 바이트, None) 또는 (None, 안내문)."""
+    api_key = _pixellab_key()
+    if not api_key:
+        return None, MSG_NO_BACKEND
     try:
         response = requests.post(
             PIXELLAB_URL,
             headers={"Authorization": f"Bearer {api_key}"},
-            json={
-                "description": description,
-                "image_size": {"width": size, "height": size},
-                "detail": PIXELLAB_DETAIL,
-                "shading": PIXELLAB_SHADING,
-            },
+            json=payload,
             timeout=PIXELLAB_TIMEOUT_SEC,
         )
     except requests.RequestException as e:

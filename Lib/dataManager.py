@@ -130,7 +130,7 @@ def GetData(opentalk_name, chat_command, message):
 
 from Lib import youtube, convert_naver_map, every_mention, json_data_manager
 from Lib import gpt_api, insta, log_monitor, youtube_summary, radar_api, random_pick
-from Lib import elevenlabs_api, image_gen, minecraft_status
+from Lib import easy_pixel, elevenlabs_api, image_gen, minecraft_status
 # from Lib import fund_holdings_service
 
 # ─── 커맨드 맵 정의 ─────────────────────────────────────────────────────
@@ -150,6 +150,8 @@ chat_command_Map = [
     ['#tts', "#tts (내용) \n 내용을 음성으로 읽어 파일로 보내줍니다.", elevenlabs_api.tts],
     ['#bgm', "#bgm (설명) \n 설명에 맞는 배경음악을 만들어 보내줍니다. 최대 20초. 예) #bgm 잔잔한 로파이 피아노 / #bgm 15초 신나는 게임 음악", elevenlabs_api.bgm],
     ['#픽셀', "#픽셀 (설명) \n 픽셀아트를 그려서 보내줍니다. 예) #픽셀 검을 든 기사", image_gen.pixel],
+    ['#이지픽셀', "#이지픽셀 (대충 아무렇게나) \n AI가 프롬프트를 제대로 다듬어서 픽셀아트로 그려줍니다. 예) #이지픽셀 비오는날 우울한 고양이", easy_pixel.easy_pixel],
+    ['#easypixel', "None", easy_pixel.easy_pixel],
     ['#pxicel', "None", image_gen.pixel],   # 예전 이름 — 계속 동작하지만 도움말에는 안 나온다
     ['#pixel', "None", image_gen.pixel],
     ['#애니', "#애니 (설명) \n 움직이는 픽셀아트(GIF)와 스프라이트 시트를 보내줍니다. 예) #애니 검 휘두르는 여우 기사", image_gen.sprite],

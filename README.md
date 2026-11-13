@@ -169,6 +169,7 @@ YouTube & 네이버 지도 (youtube.py, convert_naver_map.py)
 
 그림 생성 (image_gen.py, aside_agent.py)
 - `#지피티이미지 (설명)` (`#이미지피티`, `#imagegen`도 동일): AI 그림. `#픽셀 (설명)` (`#pxicel`, `#pixel`도 동일): PixelLab 픽셀아트
+- `#이지픽셀 (대충 쓴 설명)` (`#easypixel`, easy_pixel.py): Aside 채팅(API 키 불필요)이 대충 쓴 말을 PixelLab용 프롬프트(묘사 + 외곽선·음영·시점·배경 제거·비율 옵션)로 다듬고 PixelLab API로 생성, 다듬은 프롬프트를 먼저 중간 보고로 보낸 뒤 그림을 보냄. `PIXELLAB_API_KEY` 필요. Aside가 없거나 실패하면 `GEMINI_API_KEY`로 대신 다듬음. 선택 `EASYPIXEL_ASIDE_MODEL`(예 `openai/gpt-5.6-sol`, 기본은 Aside 설정 모델)
 - 기본 경로는 Aside(AI 브라우저) 채팅: 봇이 Aside CLI(`aside exec --json`)로 Aside 에이전트에게 요청하고,
   만들어진 이미지 파일을 받아 카카오톡으로 전달. API 키가 필요 없고 Aside에 로그인된 계정을 사용
   - 필요한 것: Aside 앱 실행·로그인, Aside CLI 설치(설정 > Developers), `#pxicel`은 Aside 브라우저에서 PixelLab 로그인

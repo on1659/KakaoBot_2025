@@ -57,6 +57,7 @@ FEATURES: tuple[Feature, ...] = (
     Feature("tts", "음성 읽어주기 (#tts)", ("#tts",)),
     Feature("sound_effect", "배경음악 만들기 (#bgm)", ("#bgm",)),
     Feature("pixel_art", "픽셀아트 그리기 (#픽셀)", ("#픽셀", "#pxicel", "#pixel")),
+    Feature("easy_pixel", "AI가 다듬는 픽셀아트 (#이지픽셀)", ("#이지픽셀", "#easypixel")),
     # 한 번에 PixelLab 생성 횟수를 3회 쓴다 (#픽셀은 1회) — 따로 켜고 끌 수 있게 분리
     Feature("pixel_anim", "픽셀 애니메이션 (#애니)", ("#애니", "#sprite")),
     Feature("image_gen", "AI 그림 그리기 (#지피티이미지)", ("#지피티이미지", "#이미지피티", "#imagegen")),

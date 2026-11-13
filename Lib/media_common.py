@@ -241,6 +241,18 @@ def _find_chat(room):
     return None
 
 
+def send_progress(room, text):
+    """
+    백그라운드 작업 도중 중간 보고를 그 방으로 보낸다 (최종 결과보다 먼저 나간다).
+    방의 ChatProcess를 못 찾으면(단독 실행·테스트) 보내지 않고 False — 호출한 쪽이 결과에 합친다.
+    """
+    chat = _find_chat(room)
+    if chat is None:
+        return False
+    chat.add_message_to_queue(text, "text")
+    return True
+
+
 def run_in_background(room, ack, work):
     """
     work() -> (payload, type) 를 별도 스레드에서 실행한다.
